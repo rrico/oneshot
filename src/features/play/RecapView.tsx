@@ -12,11 +12,12 @@ interface RecapViewProps {
   results: TrackResult[];
   tracksById: Map<number, Track>;
   shareParam: string;
+  finishedEarly?: boolean;
 }
 
 type CopyKey = 'results' | 'link';
 
-export function RecapView({ playlistTitle, results, tracksById, shareParam }: RecapViewProps) {
+export function RecapView({ playlistTitle, results, tracksById, shareParam, finishedEarly }: RecapViewProps) {
   const [copiedKey, setCopiedKey] = useState<CopyKey | null>(null);
   const [copyFailed, setCopyFailed] = useState(false);
 
@@ -38,8 +39,13 @@ export function RecapView({ playlistTitle, results, tracksById, shareParam }: Re
     }
   };
 
+  const played = results.filter((r) => r.outcome === 'won' || r.outcome === 'lost').length;
+  const subtitle = finishedEarly
+    ? `Ended early — ${played} of ${results.length} tracks played`
+    : 'Game complete';
+
   return (
-    <GameShell title={playlistTitle} subtitle="Game complete">
+    <GameShell title={playlistTitle} subtitle={subtitle}>
       <div className="space-y-6">
         <div className="rounded-2xl border border-edge bg-panel p-6 text-center">
           <p className="text-sm text-ink-muted">Final score</p>

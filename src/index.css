@@ -93,3 +93,10 @@ input[type='range'].volume-slider::-moz-range-thumb {
   background: var(--color-ink);
   cursor: pointer;
 }
+
+mark {
+  background: color-mix(in srgb, var(--color-accent) 25%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}

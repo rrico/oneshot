@@ -67,10 +67,11 @@ describe('results codec', () => {
       { outcome: 'lost' as const },
       { outcome: 'won' as const, winningAttempt: 6 },
       { outcome: 'unplayable' as const },
+      { outcome: 'skipped' as const },
     ];
     const encoded = encodeResults(results);
-    expect(encoded).toBe('1x6u');
-    const decoded = decodeResultsParam(encoded, 4);
+    expect(encoded).toBe('1x6us');
+    const decoded = decodeResultsParam(encoded, 5);
     expect(decoded).toEqual({ ok: true, outcomes: results });
   });
 

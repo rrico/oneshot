@@ -9,9 +9,11 @@ export function resultCell(result: TrackResult): string {
     return ATTEMPT_KEYCAPS[result.winningAttempt - 1] ?? '\u2705';
   }
   if (result.outcome === 'unplayable') return '\u{1F6AB}'; // 🚫
+  if (result.outcome === 'skipped') return '\u{1F6D1}'; // 🛑 game ended early
   return '\u274C'; // ❌
 }
 
+/** Wins out of all playable tracks — unplayed (skipped) tracks still count in the denominator. */
 export function scoreLine(results: TrackResult[]): string {
   const won = results.filter((r) => r.outcome === 'won').length;
   const playable = results.filter((r) => r.outcome !== 'unplayable').length;

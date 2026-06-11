@@ -78,6 +78,28 @@ class AudioEngine {
     this.emit();
   }
 
+  /** Pause playback in place — `resume()` continues from the same position. */
+  pause(): void {
+    this.stop();
+  }
+
+  /** Continue a paused clip up to the current boundary. No-op if at/past it. */
+  async resume(): Promise<void> {
+    const audio = this.audio;
+    if (!audio || !audio.src) return;
+    if (audio.currentTime >= this.limitSeconds || audio.ended) return;
+    this.buffering = true;
+    this.emit();
+    try {
+      await audio.play();
+      this.startTicker();
+    } catch (error) {
+      this.buffering = false;
+      this.emit();
+      throw error;
+    }
+  }
+
   /** Stop playback and zero the clock — call when a new round begins. */
   reset(): void {
     const audio = this.audio;

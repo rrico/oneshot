@@ -15,7 +15,6 @@ import { useAudioClock } from '@/lib/audio/useAudioClock';
 import { useShortcuts } from '@/lib/shortcuts/useShortcuts';
 import { appError, type AppError } from '@/lib/errors';
 import { Button } from '@/components/ui/Button';
-import { ShortcutHint } from '@/components/shortcuts/ShortcutHint';
 import { AttemptLadder } from './AttemptLadder';
 import { SnippetProgressBar } from './SnippetProgressBar';
 import { MissedGuessesList } from './MissedGuessesList';
@@ -28,6 +27,8 @@ interface RoundProps {
   /** Label for the post-round primary action (e.g. "Next track", "See results"). */
   nextLabel: string;
   onResolved: (result: TrackResult) => void;
+  /** End the whole game from the reveal screen; receives this round's result. */
+  onFinishEarly?: (result: TrackResult) => void;
   autoFocusGuess?: boolean;
 }
 
@@ -35,7 +36,7 @@ interface RoundProps {
  * One full Heardle round for one track: progressive snippets, guess/skip,
  * reveal, then an explicit advance (FR10-FR19).
  */
-export function Round({ track, nextLabel, onResolved, autoFocusGuess = true }: RoundProps) {
+export function Round({ track, nextLabel, onResolved, onFinishEarly, autoFocusGuess = true }: RoundProps) {
   const [round, setRound] = useState<RoundState>(initialRoundState);
   const [playbackError, setPlaybackError] = useState<AppError | null>(null);
   const clock = useAudioClock();
@@ -117,13 +118,34 @@ export function Round({ track, nextLabel, onResolved, autoFocusGuess = true }: R
     }
   };
 
+  /** Pause if playing; otherwise resume mid-clip or (re)start the snippet. */
+  const togglePlayback = useCallback(() => {
+    const clk = audioEngine.getClock();
+    if (clk.isPlaying) {
+      audioEngine.pause();
+      return;
+    }
+    if (clk.elapsed > 0 && clk.elapsed < unlockedSeconds(roundRef.current)) {
+      audioEngine.resume().catch(() => void playSnippet());
+    } else {
+      void playSnippet();
+    }
+  }, [playSnippet]);
+
+  const currentResult = (): TrackResult => ({
+    trackId: track.id,
+    outcome: round.status === 'won' ? 'won' : 'lost',
+    winningAttempt: round.status === 'won' ? winningAttempt(round) : undefined,
+  });
+
   const handleNext = () => {
     audioEngine.stop();
-    onResolved({
-      trackId: track.id,
-      outcome: round.status === 'won' ? 'won' : 'lost',
-      winningAttempt: round.status === 'won' ? winningAttempt(round) : undefined,
-    });
+    onResolved(currentResult());
+  };
+
+  const handleEndGame = () => {
+    audioEngine.stop();
+    onFinishEarly?.(currentResult());
   };
 
   useEffect(() => {
@@ -133,8 +155,8 @@ export function Round({ track, nextLabel, onResolved, autoFocusGuess = true }: R
   useShortcuts(
     'play',
     [
-      { key: ' ', label: 'Space', description: 'Play / replay the snippet', handler: () => void playSnippet() },
-      { key: 's', label: 'S', description: 'Skip (costs one attempt)', handler: handleSkip },
+      { key: ' ', label: 'Space', description: 'Play / pause the snippet', handler: togglePlayback },
+      { key: 's', label: 'S', description: 'Hear more (costs one attempt)', handler: handleSkip },
     ],
     !isResolved,
   );
@@ -154,22 +176,6 @@ export function Round({ track, nextLabel, onResolved, autoFocusGuess = true }: R
 
       <SnippetProgressBar elapsed={clock.elapsed} unlocked={unlocked} />
 
-      {!isResolved && (
-        <div className="flex items-center justify-center gap-3">
-          <Button
-            variant="primary"
-            onClick={() => void playSnippet()}
-            disabled={clock.isBuffering}
-            className="min-w-44"
-            aria-label={clock.isPlaying ? 'Replay snippet' : 'Play snippet'}
-          >
-            <span aria-hidden="true">{clock.isBuffering ? '…' : '▶'}</span>
-            {clock.isBuffering ? 'Buffering' : clock.isPlaying ? 'Playing' : 'Play snippet'}
-          </Button>
-          <ShortcutHint label="Space" />
-        </div>
-      )}
-
       {playbackError && (
         <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3">
           <div>
@@ -179,8 +185,6 @@ export function Round({ track, nextLabel, onResolved, autoFocusGuess = true }: R
           <Button onClick={() => void playSnippet()}>Retry</Button>
         </div>
       )}
-
-      <MissedGuessesList guesses={round.missedGuesses} />
 
       {isResolved ? (
         <div className="space-y-4">
@@ -197,28 +201,33 @@ export function Round({ track, nextLabel, onResolved, autoFocusGuess = true }: R
             >
               {nextLabel}
             </button>
-            <ShortcutHint label="Enter" />
+            {onFinishEarly && <Button onClick={handleEndGame}>End game</Button>}
           </div>
         </div>
       ) : (
         <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button
+              variant="primary"
+              onClick={togglePlayback}
+              disabled={clock.isBuffering}
+              aria-label={clock.isPlaying ? 'Pause' : 'Play'}
+            >
+              <span aria-hidden="true">{clock.isBuffering ? '…' : clock.isPlaying ? '❚❚' : '▶'}</span>
+              {clock.isBuffering ? 'Buffering' : clock.isPlaying ? 'Pause' : 'Play'}
+            </Button>
+            <Button onClick={handleSkip}>Hear more</Button>
+          </div>
           <GuessCombobox
             onSelect={handleGuess}
             isAlreadyGuessed={(candidate) => alreadyGuessed(round, candidate)}
-            onEmptySpace={() => void playSnippet()}
+            onEmptySpace={togglePlayback}
             autoFocus={autoFocusGuess}
           />
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-ink-faint">
-              {MAX_ATTEMPTS - round.attemptIndex} attempt{MAX_ATTEMPTS - round.attemptIndex === 1 ? '' : 's'} left
-            </p>
-            <div className="flex items-center gap-2">
-              <Button onClick={handleSkip}>
-                Skip <span className="text-ink-faint">(+ longer clip)</span>
-              </Button>
-              <ShortcutHint label="S" />
-            </div>
-          </div>
+          <p className="text-xs text-ink-faint">
+            {MAX_ATTEMPTS - round.attemptIndex} attempt{MAX_ATTEMPTS - round.attemptIndex === 1 ? '' : 's'} left
+          </p>
+          <MissedGuessesList guesses={round.missedGuesses} answer={track} />
         </div>
       )}
     </div>

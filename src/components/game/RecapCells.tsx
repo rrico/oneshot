@@ -20,17 +20,26 @@ export function RecapCells({ outcomes }: RecapCellsProps) {
               ? `Track ${index + 1}: guessed on attempt ${result.winningAttempt}`
               : result.outcome === 'lost'
                 ? `Track ${index + 1}: missed`
-                : `Track ${index + 1}: unavailable`
+                : result.outcome === 'skipped'
+                  ? `Track ${index + 1}: not played`
+                  : `Track ${index + 1}: unavailable`
           }
           className={cn(
             'flex h-10 w-10 items-center justify-center rounded-lg border text-base font-bold tabular-nums',
             result.outcome === 'won' && 'border-success/60 bg-success/15 text-success',
             result.outcome === 'lost' && 'border-edge bg-surface text-ink-faint',
             result.outcome === 'unplayable' && 'border-edge bg-surface text-warn',
+            result.outcome === 'skipped' && 'border-edge bg-surface text-ink-faint',
           )}
         >
           <span aria-hidden="true">
-            {result.outcome === 'won' ? result.winningAttempt : result.outcome === 'lost' ? '✕' : '⊘'}
+            {result.outcome === 'won'
+              ? result.winningAttempt
+              : result.outcome === 'lost'
+                ? '✕'
+                : result.outcome === 'skipped'
+                  ? '–'
+                  : '⊘'}
           </span>
         </li>
       ))}

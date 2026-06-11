@@ -1,11 +1,13 @@
 import type { Track } from '@/types';
+import { highlightSharedWords } from '@/lib/utils';
 
 interface MissedGuessesListProps {
   guesses: Track[];
+  answer: Track;
 }
 
-/** Append-only wrong picks for the current round. Muted — wrong guesses are normal gameplay. */
-export function MissedGuessesList({ guesses }: MissedGuessesListProps) {
+/** Append-only wrong picks for the current round. Shared words vs the answer are highlighted. */
+export function MissedGuessesList({ guesses, answer }: MissedGuessesListProps) {
   if (guesses.length === 0) return null;
   return (
     <ul aria-label="Wrong guesses this round" className="max-h-44 space-y-1.5 overflow-y-auto">
@@ -18,8 +20,8 @@ export function MissedGuessesList({ guesses }: MissedGuessesListProps) {
             ✕
           </span>
           <span className="truncate text-ink-muted">
-            <span className="text-ink/80">{guess.title}</span>
-            <span className="text-ink-faint"> — {guess.artist}</span>
+            <span className="text-ink/80">{highlightSharedWords(guess.title, answer.title)}</span>
+            <span className="text-ink-faint"> — {highlightSharedWords(guess.artist, answer.artist)}</span>
           </span>
         </li>
       ))}

@@ -106,13 +106,22 @@ export function buildShareUrl(playlist: Playlist): string {
 
 // --- Run results payload (shared results page) ------------------------------
 // One character per track: '1'-'6' = won on that attempt, 'x' = lost,
-// 'u' = unplayable. Order matches the playlist payload.
+// 'u' = unplayable, 's' = not played (game ended early). Order matches the
+// playlist payload.
 
 export type ResultOutcome = { outcome: RoundOutcome; winningAttempt?: number };
 
 export function encodeResults(results: Array<{ outcome: RoundOutcome; winningAttempt?: number }>): string {
   return results
-    .map((r) => (r.outcome === 'won' ? String(r.winningAttempt ?? 6) : r.outcome === 'lost' ? 'x' : 'u'))
+    .map((r) =>
+      r.outcome === 'won'
+        ? String(r.winningAttempt ?? 6)
+        : r.outcome === 'lost'
+          ? 'x'
+          : r.outcome === 'skipped'
+            ? 's'
+            : 'u',
+    )
     .join('');
 }
 
@@ -127,7 +136,7 @@ export function decodeResultsParam(param: string | null | undefined, expectedLen
       'copy-link',
     ),
   };
-  if (!param || !/^[1-6xu]+$/.test(param) || param.length !== expectedLength) return badResults;
+  if (!param || !/^[1-6xus]+$/.test(param) || param.length !== expectedLength) return badResults;
   return {
     ok: true,
     outcomes: [...param].map((char) =>
@@ -135,7 +144,9 @@ export function decodeResultsParam(param: string | null | undefined, expectedLen
         ? { outcome: 'lost' as const }
         : char === 'u'
           ? { outcome: 'unplayable' as const }
-          : { outcome: 'won' as const, winningAttempt: Number(char) },
+          : char === 's'
+            ? { outcome: 'skipped' as const }
+            : { outcome: 'won' as const, winningAttempt: Number(char) },
     ),
   };
 }

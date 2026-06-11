@@ -25,20 +25,36 @@ export function RecapGrid({ results, tracksById }: RecapGridProps) {
                 result.outcome === 'won' && 'border-success/60 bg-success/15 text-success',
                 result.outcome === 'lost' && 'border-edge bg-surface text-ink-faint',
                 result.outcome === 'unplayable' && 'border-edge bg-surface text-warn',
+                result.outcome === 'skipped' && 'border-edge bg-surface text-ink-faint',
               )}
             >
-              {result.outcome === 'won' ? result.winningAttempt : result.outcome === 'lost' ? '✕' : '⊘'}
+              {result.outcome === 'won'
+                ? result.winningAttempt
+                : result.outcome === 'lost'
+                  ? '✕'
+                  : result.outcome === 'skipped'
+                    ? '–'
+                    : '⊘'}
             </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm text-ink">{track?.title ?? 'Unknown track'}</span>
-              <span className="block truncate text-xs text-ink-muted">{track?.artist ?? ''}</span>
-            </span>
+            {result.outcome === 'skipped' ? (
+              // Don't spoil tracks the player never heard — they may replay.
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm text-ink-faint">Not played</span>
+              </span>
+            ) : (
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm text-ink">{track?.title ?? 'Unknown track'}</span>
+                <span className="block truncate text-xs text-ink-muted">{track?.artist ?? ''}</span>
+              </span>
+            )}
             <span className="shrink-0 text-xs text-ink-muted">
               {result.outcome === 'won'
                 ? `attempt ${result.winningAttempt}`
                 : result.outcome === 'lost'
                   ? 'missed'
-                  : 'unavailable'}
+                  : result.outcome === 'skipped'
+                    ? 'ended early'
+                    : 'unavailable'}
             </span>
           </li>
         );

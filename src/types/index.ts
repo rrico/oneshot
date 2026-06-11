@@ -14,7 +14,7 @@ export interface Playlist {
   trackIds: number[];
 }
 
-export type RoundOutcome = 'won' | 'lost' | 'unplayable';
+export type RoundOutcome = 'won' | 'lost' | 'unplayable' | 'skipped';
 
 export interface TrackResult {
   trackId: number;

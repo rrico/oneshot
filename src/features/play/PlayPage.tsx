@@ -17,9 +17,7 @@ type PlayPhase =
   | { kind: 'empty' }
   | { kind: 'round'; index: number }
   | { kind: 'unplayable-notice'; index: number }
-  | { kind: 'recap' };
-
-const HINT_DISMISSED_KEY = 'oneshot.hints.dismissed';
+  | { kind: 'recap'; endedEarly?: boolean };
 
 export function PlayPage() {
   const [searchParams] = useSearchParams();
@@ -28,7 +26,6 @@ export function PlayPage() {
   const [loaded, setLoaded] = useState<LoadedTrack[] | null>(null);
   const [phase, setPhase] = useState<PlayPhase | null>(null);
   const [results, setResults] = useState<TrackResult[]>([]);
-  const [showHint, setShowHint] = useState(() => localStorage.getItem(HINT_DISMISSED_KEY) !== '1');
 
   // Hydrate: fetch every track in the playlist (FR9a -> FR9b handoff).
   useEffect(() => {
@@ -168,6 +165,7 @@ export function PlayPage() {
         results={results}
         tracksById={tracksById}
         shareParam={searchParams.get('d') ?? ''}
+        finishedEarly={phase.endedEarly ?? false}
       />
     );
   }
@@ -177,30 +175,22 @@ export function PlayPage() {
   const track = entry.track!;
   const isLast = phase.index === total - 1;
 
+  /** End the run after the current round: pad unplayed tracks as skipped (or unplayable). */
+  const finishEarly = (result: TrackResult) => {
+    const remaining: TrackResult[] = loaded!
+      .slice(phase.index + 1)
+      .map((entry) => ({ trackId: entry.id, outcome: entry.track === null ? 'unplayable' : 'skipped' }));
+    setResults([...results, result, ...remaining]);
+    setPhase({ kind: 'recap', endedEarly: true });
+  };
+
   return (
     <GameShell title={playlistTitle} subtitle={`Track ${phase.index + 1} of ${total}`}>
-      {showHint && (
-        <div className="mb-6 flex items-start justify-between gap-3 rounded-xl border border-edge bg-panel px-4 py-3 text-sm text-ink-muted">
-          <p>
-            <strong className="text-ink">How to play:</strong> press <kbd className="rounded border border-edge px-1">Space</kbd> to
-            hear the snippet, type to guess, or skip to unlock more audio. Both cost an attempt.
-          </p>
-          <button
-            aria-label="Dismiss hint"
-            className="cursor-pointer text-ink-faint hover:text-ink"
-            onClick={() => {
-              setShowHint(false);
-              localStorage.setItem(HINT_DISMISSED_KEY, '1');
-            }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
       <Round
         track={track}
         nextLabel={isLast ? 'See results' : 'Next track'}
         onResolved={(result) => advanceTo(phase.index + 1, [...results, result])}
+        onFinishEarly={isLast ? undefined : finishEarly}
       />
     </GameShell>
   );
