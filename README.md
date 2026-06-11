@@ -29,8 +29,17 @@ npm run preview    # serve the production build locally
 
 ## Deployment
 
-Pushes to `main` build and deploy to GitHub Pages via `.github/workflows/deploy.yml`.
-One-time setup: repository **Settings → Pages → Source: GitHub Actions**.
+The site is published to classic GitHub Pages from the `gh-pages` branch. `main` stays source-only; the built `dist/` is never committed to it.
+
+One-time setup: repository **Settings → Pages → Source: Deploy from a branch → Branch: `gh-pages` / `/ (root)`** (the branch is created by the first deploy below).
+
+To publish the current `main` to GitHub Pages:
+
+```bash
+npm run deploy
+```
+
+This runs the tests, builds to `dist/`, and force-pushes the build output to the `gh-pages` branch on `origin` (via the [`gh-pages`](https://www.npmjs.com/package/gh-pages) package). After pushing changes to `main`, run it again to update the live site.
 
 The Vite `base` is relative (`./`), so the build works at any Pages URL (user or project site) without configuration.
 
