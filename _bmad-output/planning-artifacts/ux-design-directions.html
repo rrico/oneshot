@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>oneshot — UX design directions</title>
+  <style>
+    :root {
+      --page: #0c0c0f;
+      --text: #e8e8ec;
+      --muted: #8b8b9a;
+      --border: #2a2a32;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--page);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header.doc {
+      padding: 2rem 1.25rem 1rem;
+      max-width: 56rem;
+      margin: 0 auto;
+      border-bottom: 1px solid var(--border);
+    }
+    header.doc h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 0.35rem; }
+    header.doc p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+    .hint {
+      max-width: 56rem;
+      margin: 0 auto;
+      padding: 1rem 1.25rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    section.direction {
+      padding: 2.5rem 1.25rem 3rem;
+      border-bottom: 1px solid var(--border);
+    }
+    section.direction:nth-child(even) { background: #08080b; }
+    .dir-head {
+      max-width: 56rem;
+      margin: 0 auto 1.25rem;
+    }
+    .dir-head h2 { font-size: 1.1rem; margin: 0 0 0.25rem; font-weight: 600; }
+    .dir-head .tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .dir-head p { margin: 0.5rem 0 0; color: var(--muted); font-size: 0.9rem; max-width: 42rem; }
+    .mock-wrap {
+      max-width: 56rem;
+      margin: 0 auto;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 720px) {
+      .mock-wrap { grid-template-columns: 1fr 1fr; align-items: start; }
+    }
+    .phone {
+      border-radius: 1.25rem;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      max-width: 360px;
+      margin: 0 auto;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+    }
+    .phone .bar {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .lbl { font-size: 0.7rem; color: var(--muted); text-align: center; margin-bottom: 0.35rem; }
+
+    /* D1 — Dark minimal */
+    .d1 .phone { background: #121218; }
+    .d1 .hero { padding: 2rem 1.25rem 1.5rem; text-align: center; }
+    .d1 .hero .logo { font-weight: 700; letter-spacing: -0.02em; font-size: 1.5rem; }
+    .d1 .hero .sub { color: #9a9aaa; font-size: 0.85rem; margin-top: 0.35rem; }
+    .d1 .cta {
+      margin: 1.25rem 1rem 1.75rem;
+      padding: 0.85rem;
+      border-radius: 0.75rem;
+      background: #e8e8ec;
+      color: #121218;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .d1 .play {
+      padding: 1rem;
+    }
+    .d1 .attempts { display: flex; gap: 4px; justify-content: center; margin-bottom: 0.75rem; }
+    .d1 .attempts span {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #333;
+    }
+    .d1 .attempts span.on { background: #6ee7a8; }
+    .d1 .input {
+      border: 1px solid #333;
+      border-radius: 0.5rem;
+      padding: 0.65rem;
+      color: #888;
+      font-size: 0.85rem;
+    }
+    .d1 .row { display: flex; gap: 0.5rem; margin-top: 0.65rem; }
+    .d1 .skip {
+      flex: 1;
+      text-align: center;
+      padding: 0.6rem;
+      border-radius: 0.5rem;
+      border: 1px solid #333;
+      font-size: 0.85rem;
+      color: #ccc;
+    }
+
+    /* D2 — Soft contrast / card */
+    .d2 .phone { background: linear-gradient(180deg, #1a1a22 0%, #12121a 100%); }
+    .d2 .hero { padding: 1.75rem 1rem; }
+    .d2 .card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      text-align: center;
+    }
+    .d2 .card h3 { margin: 0; font-size: 1.15rem; }
+    .d2 .card p { margin: 0.4rem 0 1rem; color: #9898a8; font-size: 0.82rem; }
+    .d2 .cta {
+      background: #6366f1;
+      color: #fff;
+      padding: 0.75rem;
+      border-radius: 0.65rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .d2 .play { padding: 1rem; }
+    .d2 .seg { display: flex; gap: 3px; justify-content: center; margin-bottom: 0.75rem; }
+    .d2 .seg i { width: 28px; height: 4px; border-radius: 2px; background: #333; }
+    .d2 .seg i.on { background: #6366f1; }
+    .d2 .input { background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; padding: 0.65rem; color: #777; font-size: 0.85rem; }
+
+    /* D3 — Mono editorial */
+    .d3 .phone { background: #0a0a0a; font-family: ui-monospace, monospace; }
+    .d3 .hero { padding: 2rem 1rem; }
+    .d3 .hero .logo { font-size: 1.1rem; letter-spacing: 0.2em; text-transform: uppercase; }
+    .d3 .hero .sub { color: #666; font-size: 0.75rem; margin-top: 0.5rem; }
+    .d3 .cta {
+      margin: 1rem;
+      border: 1px solid #fff;
+      color: #fff;
+      text-align: center;
+      padding: 0.75rem;
+      font-size: 0.8rem;
+    }
+    .d3 .play { padding: 1rem; }
+    .d3 .meta { font-size: 0.65rem; color: #555; margin-bottom: 0.5rem; }
+    .d3 .input { border-bottom: 1px solid #333; padding: 0.5rem 0; color: #555; font-size: 0.8rem; }
+    .d3 .skip { margin-top: 0.75rem; font-size: 0.75rem; color: #888; text-align: center; }
+
+    /* D4 — Warm dark */
+    .d4 .phone { background: #181412; }
+    .d4 .hero { padding: 2rem 1.25rem; text-align: center; }
+    .d4 .hero .logo { color: #fbbf77; font-weight: 700; font-size: 1.45rem; }
+    .d4 .hero .sub { color: #a89888; font-size: 0.85rem; }
+    .d4 .cta {
+      margin: 1.25rem 1rem;
+      background: linear-gradient(90deg, #ea580c, #f97316);
+      color: #fff;
+      padding: 0.85rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    .d4 .play { padding: 1rem; }
+    .d4 .dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 0.75rem; }
+    .d4 .dots b { width: 10px; height: 10px; border-radius: 50%; background: #3d3530; }
+    .d4 .dots b.on { background: #f97316; }
+    .d4 .input { background: #221c18; border: 1px solid #3d3530; border-radius: 0.5rem; padding: 0.65rem; color: #887; font-size: 0.85rem; }
+
+    /* D5 — Light clean */
+    .d5 .phone { background: #f8f8fa; color: #1a1a22; }
+    .d5 .bar { color: #888; }
+    .d5 .hero { padding: 2rem 1.25rem; text-align: center; }
+    .d5 .hero .logo { font-weight: 700; font-size: 1.5rem; color: #111; }
+    .d5 .hero .sub { color: #666; font-size: 0.85rem; }
+    .d5 .cta {
+      margin: 1rem;
+      background: #111;
+      color: #fff;
+      padding: 0.85rem;
+      border-radius: 999px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .d5 .play { padding: 1rem; background: #fff; margin: 0 0.5rem 0.5rem; border-radius: 0.75rem; }
+    .d5 .attempts span { background: #ddd; }
+    .d5 .attempts span.on { background: #22c55e; }
+    .d5 .input { border: 1px solid #ddd; border-radius: 0.5rem; padding: 0.65rem; color: #999; font-size: 0.85rem; }
+    .d5 .skip { margin-top: 0.5rem; text-align: center; color: #666; font-size: 0.85rem; }
+
+    /* D6 — Neon accent (constrained) */
+    .d6 .phone { background: #0d1117; }
+    .d6 .hero { padding: 1.75rem 1rem; text-align: center; }
+    .d6 .hero .logo {
+      background: linear-gradient(135deg, #22d3ee, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 800;
+      font-size: 1.5rem;
+    }
+    .d6 .hero .sub { color: #6e7681; font-size: 0.82rem; }
+    .d6 .cta {
+      margin: 1rem;
+      border: 1px solid #30363d;
+      color: #22d3ee;
+      padding: 0.8rem;
+      border-radius: 0.5rem;
+      text-align: center;
+      font-weight: 600;
+    }
+    .d6 .play { padding: 1rem; }
+    .d6 .ring {
+      width: 48px; height: 48px;
+      border: 3px solid #30363d;
+      border-top-color: #22d3ee;
+      border-radius: 50%;
+      margin: 0 auto 0.75rem;
+    }
+    .d6 .input { background: #161b22; border: 1px solid #30363d; border-radius: 0.5rem; padding: 0.65rem; color: #6e7681; font-size: 0.85rem; }
+
+    /* D7 — Dense author preview */
+    .d7 .phone { background: #111116; }
+    .d7 .hero { padding: 1.25rem 1rem 1rem; }
+    .d7 .hero .logo { font-size: 1.2rem; font-weight: 700; }
+    .d7 .hero .sub { font-size: 0.75rem; color: #777; margin-top: 0.25rem; }
+    .d7 .cta {
+      margin: 0 1rem 0.75rem;
+      background: #e8e8ec;
+      color: #111;
+      padding: 0.65rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      text-align: center;
+      font-size: 0.88rem;
+    }
+    .d7 .list { padding: 0 0.75rem 0.75rem; max-height: 120px; overflow: hidden; }
+    .d7 .row2 {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.4rem 0.35rem;
+      border-radius: 0.35rem;
+      font-size: 0.72rem;
+      color: #aaa;
+    }
+    .d7 .row2:nth-child(odd) { background: rgba(255,255,255,0.03); }
+    .d7 .play { padding: 0.75rem; }
+    .d7 .mini { font-size: 0.65rem; color: #666; text-align: center; margin-bottom: 0.35rem; }
+
+    /* D8 — Play-first chrome */
+    .d8 .phone { background: #0e0e12; }
+    .d8 .play { padding: 1rem 0.75rem; }
+    .d8 .now { text-align: center; font-size: 0.65rem; color: #666; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+    .d8 .art {
+      width: 120px; height: 120px;
+      margin: 0 auto 0.75rem;
+      border-radius: 0.75rem;
+      background: linear-gradient(145deg, #2d2d3a, #1a1a22);
+      border: 1px solid #2a2a32;
+    }
+    .d8 .track { text-align: center; font-weight: 600; font-size: 0.9rem; }
+    .d8 .artist { text-align: center; font-size: 0.75rem; color: #888; margin-top: 0.2rem; }
+    .d8 .attempts { margin: 0.75rem 0; }
+    .d8 .input { border: 1px solid #333; border-radius: 0.5rem; padding: 0.65rem; color: #666; font-size: 0.85rem; }
+    .d8 .fab {
+      position: relative;
+      margin: -2rem 1rem 0;
+      background: #2d2d3a;
+      border-radius: 1rem;
+      padding: 1rem;
+      border: 1px solid #3d3d48;
+    }
+    .d8 .fab .cta2 {
+      background: #fafafa;
+      color: #111;
+      padding: 0.75rem;
+      border-radius: 0.65rem;
+      font-weight: 600;
+      text-align: center;
+      font-size: 0.85rem;
+    }
+
+    /* —— Selected hybrid: D1 landing + D1 chrome + D6 playback progress —— */
+    .sel { background: linear-gradient(180deg, #0a1620 0%, #08080b 12%); border-bottom: 2px solid #22d3ee33; }
+    .sel .dir-head h2 { color: #e8f8fc; }
+    .hyb .phone { background: #121218; }
+    .hyb .play { padding: 0.85rem 0.75rem 1rem; }
+    .hyb .attempts { display: flex; gap: 4px; justify-content: center; margin-bottom: 0.5rem; }
+    .hyb .attempts span { width: 8px; height: 8px; border-radius: 50%; background: #333; }
+    .hyb .attempts span.on { background: #6ee7a8; }
+    .hyb .clip-label {
+      text-align: center;
+      font-size: 0.65rem;
+      color: #8b9aab;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.35rem;
+    }
+    .hyb .bar-track {
+      height: 5px;
+      border-radius: 99px;
+      background: #2a2a32;
+      overflow: hidden;
+      margin-bottom: 0.3rem;
+    }
+    .hyb .bar-fill {
+      height: 100%;
+      width: 58%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #22d3ee, #a78bfa);
+    }
+    .hyb .bar-times {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.65rem;
+      font-variant-numeric: tabular-nums;
+      color: #9aa9b8;
+      margin-bottom: 0.65rem;
+    }
+    .hyb .bar-times span:last-child { color: #6e7681; }
+    .hyb .missed-label {
+      font-size: 0.6rem;
+      color: #6e7681;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.35rem;
+    }
+    .hyb .missed-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      margin-bottom: 0.6rem;
+      max-height: 5rem;
+      overflow-y: auto;
+    }
+    .hyb .missed-row {
+      font-size: 0.68rem;
+      padding: 0.38rem 0.45rem;
+      background: rgba(255,255,255,0.045);
+      border-radius: 0.35rem;
+      border-left: 2px solid #4b5563;
+    }
+    .hyb .missed-row .t { font-weight: 500; color: #aeb6c4; line-height: 1.25; }
+    .hyb .missed-row .ar { font-size: 0.62rem; color: #6b7280; margin-top: 0.08rem; }
+    .hyb .input {
+      border: 1px solid #333;
+      border-radius: 0.5rem;
+      padding: 0.65rem;
+      color: #888;
+      font-size: 0.85rem;
+    }
+    .hyb .row { display: flex; gap: 0.5rem; margin-top: 0.55rem; }
+    .hyb .skip {
+      flex: 1;
+      text-align: center;
+      padding: 0.55rem;
+      border-radius: 0.5rem;
+      border: 1px solid #30363d;
+      font-size: 0.85rem;
+      color: #ccc;
+    }
+
+    /* Author — Spotify-inspired (dark + green add) */
+    .a1 .phone { background: #121212; max-width: 380px; }
+    .a1 .top { padding: 0.5rem 0.75rem 0; display: flex; align-items: center; gap: 0.5rem; }
+    .a1 .back { color: #b3b3b3; font-size: 0.75rem; }
+    .a1 .title { flex: 1; font-weight: 700; font-size: 0.9rem; }
+    .a1 .search {
+      margin: 0.5rem 0.75rem;
+      padding: 0.55rem 0.75rem;
+      background: #fff;
+      color: #121212;
+      border-radius: 0.25rem;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .a1 .search .ph { color: #757575; }
+    .a1 .sec { padding: 0.35rem 0.75rem; font-size: 0.65rem; color: #b3b3b3; text-transform: uppercase; letter-spacing: 0.05em; }
+    .a1 .row-s {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.4rem 0.75rem;
+    }
+    .a1 .sq { width: 40px; height: 40px; border-radius: 0.2rem; background: linear-gradient(135deg,#333,#222); flex-shrink: 0; }
+    .a1 .meta { flex: 1; min-width: 0; }
+    .a1 .meta .t { font-size: 0.78rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .a1 .meta .ar { font-size: 0.65rem; color: #b3b3b3; }
+    .a1 .add {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: #1db954;
+      color: #000;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 700; flex-shrink: 0;
+    }
+    .a1 .playlist-bar {
+      margin-top: 0.35rem;
+      border-top: 1px solid #282828;
+      padding: 0.5rem 0.75rem;
+      background: #181818;
+    }
+    .a1 .playlist-bar .p-title { font-size: 0.72rem; font-weight: 700; margin-bottom: 0.35rem; }
+    .a1 .pl-row {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.25rem 0;
+      font-size: 0.68rem;
+      color: #b3b3b3;
+    }
+    .a1 .pl-row .n { color: #b3b3b3; width: 1rem; }
+    .a1 .sticky-cta {
+      margin: 0.5rem 0.75rem 0.75rem;
+      padding: 0.65rem;
+      border-radius: 2rem;
+      background: #fff;
+      color: #000;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+
+    /* Author — Apple Music-inspired (light, editorial) */
+    .a2 .phone { background: #fff; color: #1d1d1f; max-width: 380px; }
+    .a2 .nav { padding: 0.6rem 0.75rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e5ea; }
+    .a2 .nav .cancel { color: #007aff; font-size: 0.85rem; }
+    .a2 .nav .done { color: #007aff; font-weight: 600; font-size: 0.85rem; }
+    .a2 .nav .mid { font-weight: 600; font-size: 0.85rem; }
+    .a2 .h2 { padding: 0.75rem 0.75rem 0.25rem; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
+    .a2 .add-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.5rem 0.75rem;
+      margin: 0.5rem 0.75rem;
+      background: #f2f2f7;
+      border-radius: 0.65rem;
+    }
+    .a2 .add-row .icon { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(180deg,#ff3b30,#ff6482); display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;}
+    .a2 .add-row .txt { font-size: 0.85rem; font-weight: 500; }
+    .a2 .song {
+      display: flex; align-items: center; gap: 0.55rem;
+      padding: 0.45rem 0.75rem;
+    }
+    .a2 .art { width: 48px; height: 48px; border-radius: 0.25rem; background: linear-gradient(145deg,#ddd,#bbb); flex-shrink: 0; }
+    .a2 .song .t { font-size: 0.85rem; font-weight: 500; }
+    .a2 .song .ar { font-size: 0.72rem; color: #8e8e93; margin-top: 0.1rem; }
+    .a2 .song .more { margin-left: auto; color: #c7c7cc; font-size: 1.1rem; }
+
+    /* Author — Spotify: reorder + chips */
+    .a3 .phone { background: #121212; max-width: 380px; }
+    .a3 .chips { display: flex; gap: 0.35rem; padding: 0.5rem 0.75rem; overflow-x: auto; }
+    .a3 .chip {
+      padding: 0.35rem 0.65rem;
+      border-radius: 2rem;
+      font-size: 0.7rem;
+      background: #2a2a2a;
+      color: #fff;
+      white-space: nowrap;
+    }
+    .a3 .chip.on { background: #1db954; color: #000; font-weight: 600; }
+    .a3 .row-r {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.35rem 0.5rem 0.35rem 0.35rem;
+    }
+    .a3 .drag { color: #535353; font-size: 0.9rem; letter-spacing: -2px; padding: 0 0.2rem; }
+    .a3 .sq { width: 44px; height: 44px; border-radius: 0.15rem; background: #333; flex-shrink: 0; }
+    .a3 .row-r .meta { flex: 1; }
+    .a3 .row-r .t { font-size: 0.8rem; font-weight: 500; }
+    .a3 .row-r .ar { font-size: 0.65rem; color: #b3b3b3; }
+    .a3 .hint { font-size: 0.6rem; color: #535353; padding: 0.25rem 0.75rem 0.5rem; }
+
+    /* Author — Apple: grouped list + sheet feel */
+    .a4 .phone { background: #f2f2f7; color: #1d1d1f; max-width: 380px; }
+    .a4 .sheet-top {
+      background: #fff;
+      border-radius: 0.75rem 0.75rem 0 0;
+      padding: 0.5rem 0 0.25rem;
+    }
+    .a4 .grab { width: 36px; height: 5px; background: #e5e5ea; border-radius: 99px; margin: 0 auto 0.5rem; }
+    .a4 .sheet-head { display: flex; justify-content: space-between; padding: 0 0.75rem 0.5rem; align-items: center; }
+    .a4 .sheet-head .t { font-weight: 700; font-size: 0.95rem; }
+    .a4 .sheet-head .add { color: #007aff; font-size: 0.85rem; font-weight: 500; }
+    .a4 .group {
+      margin: 0.5rem 0.75rem;
+      background: #fff;
+      border-radius: 0.65rem;
+      overflow: hidden;
+    }
+    .a4 .g-row {
+      display: flex; align-items: center;
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid #e5e5ea;
+      font-size: 0.85rem;
+    }
+    .a4 .g-row:last-child { border-bottom: none; }
+    .a4 .g-row .chev { margin-left: auto; color: #c7c7cc; font-size: 0.9rem; }
+    .a4 .g-row .sub { color: #8e8e93; font-size: 0.72rem; display: block; margin-top: 0.15rem; }
+  </style>
+</head>
+<body>
+  <header class="doc">
+    <h1>oneshot — design direction showcase</h1>
+    <p>Eight play-direction explorations plus <strong>selected D1+D6 hybrid</strong> and <strong>four authoring</strong> mocks (Spotify / Apple Music–inspired). Open on desktop or narrow the window.</p>
+  </header>
+  <p class="hint">Evaluate: hierarchy, CTA clarity, attempt UI legibility, and fit with “simple, modern, clean.” Hover states omitted—this is layout and weight only.</p>
+
+  <section class="direction sel hyb" id="selected">
+    <div class="dir-head">
+      <span class="tag">Selected · D1 + D6</span>
+      <h2>Hybrid — D1 landing &amp; chrome + D6 playback progress</h2>
+      <p><strong>Landing</strong> stays Direction&nbsp;1 (minimal dark, neutral CTA). <strong>Play</strong> keeps D1 dots + guess + skip, a <strong>Heardle-style snippet progress bar</strong> (cyan→violet fill from D6) with <strong>elapsed</strong> / <strong>clip end</strong> time, and a <strong>missed-guesses list</strong>—every <strong>wrong</strong> autocomplete pick stays <strong>visible</strong> for the round (<strong>title</strong> + <strong>artist</strong>, muted—like classic Heardle). <strong>Attempt</strong> state stays on the <strong>six dots</strong>. Clip length follows the PRD ladder (1s / 2s / 4s / …).</p>
+    </div>
+    <div class="mock-wrap">
+      <div>
+        <div class="lbl">Landing (unchanged from D1)</div>
+        <div class="phone d1">
+          <div class="bar">·····</div>
+          <div class="hero">
+            <div class="logo">oneshot</div>
+            <div class="sub">Your playlist. Their guess.</div>
+          </div>
+          <div class="cta">Create a playlist</div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Play — hybrid</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="play">
+            <div class="attempts"><span class="on"></span><span class="on"></span><span></span><span></span><span></span><span></span></div>
+            <div class="clip-label">Now playing · clip 3 of 6</div>
+            <div class="bar-track"><div class="bar-fill"></div></div>
+            <div class="bar-times"><span>0:02</span><span>0:04</span></div>
+            <div class="missed-label">Not it</div>
+            <div class="missed-list">
+              <div class="missed-row"><div class="t">Blinding Lights</div><div class="ar">The Weeknd</div></div>
+              <div class="missed-row"><div class="t">As It Was</div><div class="ar">Harry Styles</div></div>
+            </div>
+            <div class="input">Search songs to guess…</div>
+            <div class="row"><div class="skip">Skip</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="direction author-block" id="author-playlist" style="background:#0a0a0c;">
+    <div class="dir-head">
+      <span class="tag">Authoring · playlist build</span>
+      <h2>Four directions · Spotify &amp; Apple Music patterns</h2>
+      <p>Extra mocks for <strong>create playlist</strong> flows—search, add, reorder, share—inspired by <strong>Spotify</strong> (dark, green add, chips, drag rows) and <strong>Apple Music</strong> (light editorial, rounded rows, Done/sheet, red/pink accents). Pick a base or mix.</p>
+    </div>
+    <div class="mock-wrap" style="grid-template-columns: 1fr;">
+      <div>
+        <div class="lbl">A1 · Spotify-style — search + green add + playlist strip</div>
+        <div class="phone a1">
+          <div class="bar" style="color:#b3b3b3;">·····</div>
+          <div class="top"><span class="back">←</span><span class="title">Build playlist</span></div>
+          <div class="search"><span style="opacity:0.5">🔍</span> <span class="ph">Search Deezer…</span></div>
+          <div class="sec">Results</div>
+          <div class="row-s">
+            <div class="sq"></div>
+            <div class="meta"><div class="t">Song title goes here</div><div class="ar">Artist name</div></div>
+            <div class="add">+</div>
+          </div>
+          <div class="row-s">
+            <div class="sq"></div>
+            <div class="meta"><div class="t">Another track</div><div class="ar">Another artist</div></div>
+            <div class="add">+</div>
+          </div>
+          <div class="playlist-bar">
+            <div class="p-title">Your game · 4 songs</div>
+            <div class="pl-row"><span class="n">1</span> First song — Artist</div>
+            <div class="pl-row"><span class="n">2</span> Second — Artist</div>
+          </div>
+          <div class="sticky-cta">Copy link</div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">A2 · Apple Music-style — sheet header, Add songs, rounded rows</div>
+        <div class="phone a2">
+          <div class="bar" style="color:#8e8e93;">·····</div>
+          <div class="nav"><span class="cancel">Cancel</span><span class="mid">New game</span><span class="done">Done</span></div>
+          <div class="h2">Playlist</div>
+          <div class="add-row"><div class="icon">+</div><div class="txt">Add songs</div></div>
+          <div class="song">
+            <div class="art"></div>
+            <div><div class="t">Track name</div><div class="ar">Artist</div></div>
+            <span class="more">☰</span>
+          </div>
+          <div class="song">
+            <div class="art"></div>
+            <div><div class="t">Longer track title example</div><div class="ar">Featured artist</div></div>
+            <span class="more">☰</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">A3 · Spotify-style — filter chips + drag reorder</div>
+        <div class="phone a3">
+          <div class="bar" style="color:#b3b3b3;">·····</div>
+          <div style="padding:0.5rem 0.75rem;font-weight:700;font-size:0.9rem;">Edit order</div>
+          <div class="chips"><span class="chip on">All</span><span class="chip">In playlist</span><span class="chip">Search</span></div>
+          <div class="hint">Hold drag handle to reorder (Spotify queue pattern)</div>
+          <div class="row-r"><span class="drag">⋮⋮</span><div class="sq"></div><div class="meta"><div class="t">Track one</div><div class="ar">Artist</div></div></div>
+          <div class="row-r"><span class="drag">⋮⋮</span><div class="sq"></div><div class="meta"><div class="t">Track two</div><div class="ar">Artist</div></div></div>
+          <div class="row-r"><span class="drag">⋮⋮</span><div class="sq"></div><div class="meta"><div class="t">Track three</div><div class="ar">Artist</div></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">A4 · Apple-style — grouped settings + “Add songs” row</div>
+        <div class="phone a4">
+          <div class="bar" style="color:#8e8e93;">·····</div>
+          <div class="sheet-top">
+            <div class="grab"></div>
+            <div class="sheet-head"><span class="t">Your playlist</span><span class="add">Add songs</span></div>
+          </div>
+          <div class="group">
+            <div class="g-row">Share link<span class="chev">›</span></div>
+            <div class="g-row">Preview round<span class="chev">›</span></div>
+          </div>
+          <div class="group" style="margin-top:0.35rem;">
+            <div class="g-row">Song 1<span class="sub">Artist name</span><span class="chev">›</span></div>
+            <div class="g-row">Song 2<span class="sub">Artist name</span><span class="chev">›</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="direction d1" id="d1">
+    <div class="dir-head">
+      <span class="tag">Direction 1</span>
+      <h2>Dark minimal · neutral CTA</h2>
+      <p>Maximum whitespace; light pill CTA on dark; dot attempt ladder. Closest to “quiet product” and spec dark-first default.</p>
+    </div>
+    <div class="mock-wrap">
+      <div>
+        <div class="lbl">Landing</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="hero">
+            <div class="logo">oneshot</div>
+            <div class="sub">Your playlist. Their guess.</div>
+          </div>
+          <div class="cta">Create a playlist</div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Play</div>
+        <div class="phone d1" style="min-height:280px;display:flex;align-items:center;justify-content:center;padding:1.25rem;">
+          <p style="margin:0;font-size:0.78rem;color:#8b8b9a;text-align:center;line-height:1.45;">Play UI for this direction is <strong style="color:#e8e8ec;">superseded</strong> by the <a href="#selected" style="color:#22d3ee;">Selected D1+D6 hybrid</a> (snippet progress bar + times).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="direction d2" id="d2">
+    <div class="dir-head">
+      <span class="tag">Direction 2</span>
+      <h2>Card shell · indigo accent</h2>
+      <p>Soft card on landing; segment bar for attempts. Slightly more “app” personality while staying clean.</p>
+    </div>
+    <div class="mock-wrap">
+      <div>
+        <div class="lbl">Landing</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="hero">
+            <div class="card">
+              <h3>oneshot</h3>
+              <p>Build a Heardle-style game from any Deezer tracks.</p>
+              <div class="cta">Create a playlist</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Play</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="play">
+            <div class="seg"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+            <div class="input">Guess the song…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="direction d3" id="d3">
+    <div class="dir-head">
+      <span class="tag">Direction 3</span>
+      <h2>Mono editorial</h2>
+      <p>Type-led, almost brutalist; outline CTA. Strong “music zine” vibe—may feel stark on small screens.</p>
+    </div>
+    <div class="mock-wrap">
+      <div>
+        <div class="lbl">Landing</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="hero">
+            <div class="logo">oneshot</div>
+            <div class="sub">Playlist → link → game</div>
+          </div>
+          <div class="cta">Create a playlist</div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Play</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="play">
+            <div class="meta">ATTEMPT 3 / 6</div>
+            <div class="input">Type to search…</div>
+            <div class="skip">Skip — next clip</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="direction d4" id="d4">
+    <div class="dir-head">
+      <span class="tag">Direction 4</span>
+      <h2>Warm dark · orange accent</h2>
+      <p>Amber/orange energy without full “neon”; good if you want warmth vs cool gray.</p>
+    </div>
+    <div class="mock-wrap">
+      <div>
+        <div class="lbl">Landing</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="hero">
+            <div class="logo">oneshot</div>
+            <div class="sub">One link. Whole playlist.</div>
+          </div>
+          <div class="cta">Create a playlist</div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Play</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="play">
+            <div class="dots"><b class="on"></b><b class="on"></b><b></b><b></b><b></b><b></b></div>
+            <div class="input">Pick a song…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="direction d5" id="d5">
+    <div class="dir-head">
+      <span class="tag">Direction 5</span>
+      <h2>Light clean · pill CTA</h2>
+      <p>Inverts dark-first play; high contrast for daylight use. Consider eye strain for night sessions unless theme toggle later.</p>
+    </div>
+    <div class="mock-wrap">
+      <div>
+        <div class="lbl">Landing</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="hero">
+            <div class="logo">oneshot</div>
+            <div class="sub">Share a game, not a login wall.</div>
+          </div>
+          <div class="cta">Create a playlist</div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Play</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="play">
+            <div class="attempts"><span class="on"></span><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="input">Search…</div>
+            <div class="skip">Skip</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="direction d6" id="d6">
+    <div class="dir-head">
+      <span class="tag">Direction 6</span>
+      <h2>Cool accent · tech</h2>
+      <p>Cyan/purple wordmark; outlined CTA. “Productivity tool” energy—use sparingly to stay fun.</p>
+    </div>
+    <div class="mock-wrap">
+      <div>
+        <div class="lbl">Landing</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="hero">
+            <div class="logo">oneshot</div>
+            <div class="sub">Heardle rules. Your tracks.</div>
+          </div>
+          <div class="cta">Create a playlist</div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Play</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="play">
+            <div class="ring"></div>
+            <div class="input">Autocomplete…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="direction d7" id="d7">
+    <div class="dir-head">
+      <span class="tag">Direction 7</span>
+      <h2>Author-dense preview</h2>
+      <p>Landing shows playlist rows peek—emphasizes “build” before share. Heavier UI; good if authoring is hero.</p>
+    </div>
+    <div class="mock-wrap">
+      <div>
+        <div class="lbl">Landing</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="hero">
+            <div class="logo">oneshot</div>
+            <div class="sub">3 tracks ready · add more</div>
+          </div>
+          <div class="cta">Create a playlist</div>
+          <div class="list">
+            <div class="row2">♪ Track A — Artist</div>
+            <div class="row2">♪ Track B — Artist</div>
+            <div class="row2">♪ Track C — Artist</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Play</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="play">
+            <div class="mini">Round · 2 of 6 attempts</div>
+            <div class="input">Guess…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="direction d8" id="d8">
+    <div class="dir-head">
+      <span class="tag">Direction 8</span>
+      <h2>Play-first · art placeholder</h2>
+      <p>Emphasizes cover/now-playing; landing shown as overlapping card (fab). Strong music-app metaphor.</p>
+    </div>
+    <div class="mock-wrap">
+      <div>
+        <div class="lbl">Landing (stacked)</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="play">
+            <div class="now">Now playing</div>
+            <div class="art"></div>
+            <div class="track">Mystery track</div>
+            <div class="artist">Guess to reveal</div>
+          </div>
+          <div class="fab">
+            <div class="cta2">Create a playlist</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Play</div>
+        <div class="phone">
+          <div class="bar">·····</div>
+          <div class="play">
+            <div class="art" style="width:100px;height:100px;"></div>
+            <div class="attempts" style="margin-top:0.5rem;"><span class="on"></span><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="input" style="margin-top:0.5rem;">Search…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer style="padding:2rem 1.25rem; color:#666; font-size:0.85rem; max-width:56rem; margin:0 auto;">
+    File: <code>ux-design-directions.html</code> — static concepts only. <strong>Selected play direction:</strong> D1+D6 hybrid (bar + clip end time, no ring) · <strong>Authoring:</strong> mix A1–A4 as needed.
+  </footer>
+</body>
+</html>
