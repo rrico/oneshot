@@ -36,6 +36,11 @@ function matches(binding: ShortcutBinding, event: KeyboardEvent): boolean {
 }
 
 function onKeyDown(event: KeyboardEvent): void {
+  // A keystroke already consumed by a component (e.g. Enter selecting a row in
+  // the guess combobox) must not also fire a global shortcut. Without this, the
+  // Enter that submits a winning guess re-renders the reveal screen and then
+  // triggers its just-registered Enter="next" binding on the same keypress.
+  if (event.defaultPrevented) return;
   const inInput = isTextInput(event.target);
   for (const registration of registrations) {
     for (const binding of registration.bindings) {

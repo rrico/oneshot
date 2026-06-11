@@ -56,7 +56,11 @@ export function Round({ track, nextLabel, onResolved, autoFocusGuess = true }: R
       setPlaybackError(null);
       try {
         await audioEngine.playClip(track.previewUrl, seconds ?? unlockedSeconds(roundRef.current));
-      } catch {
+      } catch (error) {
+        // An intentional stop()/reset() (e.g. advancing to the next track while
+        // the clip is still buffering) rejects the pending play() with an
+        // AbortError. That's not a playback failure — don't show the banner.
+        if (error instanceof DOMException && error.name === 'AbortError') return;
         setPlaybackError(
           appError(
             "Can't play this clip",
