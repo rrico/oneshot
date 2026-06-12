@@ -6,6 +6,7 @@ import {
   initialRoundState,
   unlockedSeconds,
   winningAttempt,
+  CLIP_SCHEDULE_SECONDS,
   FULL_CLIP_SECONDS,
   MAX_ATTEMPTS,
   type RoundState,
@@ -43,6 +44,11 @@ export function Round({ track, nextLabel, onResolved, onFinishEarly, autoFocusGu
   const nextButtonRef = useRef<HTMLButtonElement>(null);
   const unlocked = unlockedSeconds(round);
   const isResolved = round.status !== 'playing';
+  /** Seconds the next attempt would add, or null on the final attempt (skip = give up). */
+  const nextUnlockDelta =
+    round.attemptIndex < MAX_ATTEMPTS - 1
+      ? CLIP_SCHEDULE_SECONDS[round.attemptIndex + 1] - CLIP_SCHEDULE_SECONDS[round.attemptIndex]
+      : null;
 
   // Reset round state and zero the audio clock when the track changes.
   useEffect(() => {
@@ -211,12 +217,18 @@ export function Round({ track, nextLabel, onResolved, onFinishEarly, autoFocusGu
               variant="primary"
               onClick={togglePlayback}
               disabled={clock.isBuffering}
-              aria-label={clock.isPlaying ? 'Pause' : 'Play'}
+              aria-label={clock.isPlaying ? 'Pause' : `Play ${unlocked}-second snippet`}
             >
               <span aria-hidden="true">{clock.isBuffering ? '…' : clock.isPlaying ? '❚❚' : '▶'}</span>
-              {clock.isBuffering ? 'Buffering' : clock.isPlaying ? 'Pause' : 'Play'}
+              {clock.isBuffering ? 'Buffering' : clock.isPlaying ? 'Pause' : `Play ${unlocked}s snippet`}
             </Button>
-            <Button onClick={handleSkip}>Hear more</Button>
+            {nextUnlockDelta !== null ? (
+              <Button onClick={handleSkip} aria-label={`Hear ${nextUnlockDelta} more seconds (costs one attempt)`}>
+                Hear more (+{nextUnlockDelta}s)
+              </Button>
+            ) : (
+              <Button onClick={handleSkip}>Give up</Button>
+            )}
           </div>
           <GuessCombobox
             onSelect={handleGuess}

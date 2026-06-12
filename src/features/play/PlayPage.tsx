@@ -15,6 +15,7 @@ type PlayPhase =
   | { kind: 'bad-link'; error: AppError }
   | { kind: 'loading'; total: number }
   | { kind: 'empty' }
+  | { kind: 'ready' }
   | { kind: 'round'; index: number }
   | { kind: 'unplayable-notice'; index: number }
   | { kind: 'recap'; endedEarly?: boolean };
@@ -51,7 +52,9 @@ export function PlayPage() {
     ).then((tracks) => {
       if (cancelled) return;
       setLoaded(tracks);
-      advanceTo(0, [], tracks);
+      // Land on an intro screen first — share-link visitors arrive with zero
+      // context, and the Start click doubles as the audio-unlock gesture.
+      setPhase({ kind: 'ready' });
     });
     return () => {
       cancelled = true;
@@ -133,6 +136,61 @@ export function PlayPage() {
           <Link to="/create" className="text-sm text-accent hover:underline">
             Or create your own →
           </Link>
+        </div>
+      </GameShell>
+    );
+  }
+
+  if (phase.kind === 'ready') {
+    return (
+      <GameShell title={playlistTitle} subtitle={`${total} track${total === 1 ? '' : 's'}`}>
+        <div className="rounded-2xl border border-edge bg-panel p-8">
+          <p className="text-center text-sm font-semibold tracking-wide text-accent uppercase">
+            You've been challenged
+          </p>
+          <h2 className="mt-2 mb-8 text-center text-2xl font-semibold text-ink">
+            Guess each song from a tiny snippet
+          </h2>
+
+          <ol className="mx-auto mb-8 max-w-md space-y-5">
+            {[
+              {
+                icon: '▶',
+                title: 'Listen',
+                body: 'Each track starts as a 1-second clip.',
+              },
+              {
+                icon: '🔍',
+                title: 'Guess the song',
+                body: 'Search by title or artist and pick a match.',
+              },
+              {
+                icon: '🔓',
+                title: 'Stuck? Hear more',
+                body: 'Wrong guesses and "Hear more" unlock longer clips — you get 6 tries per track.',
+              },
+            ].map((step, i) => (
+              <li key={i} className="flex items-start gap-4">
+                <span
+                  aria-hidden="true"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-edge bg-surface text-base"
+                >
+                  {step.icon}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-ink">{step.title}</span>
+                  <span className="block text-sm text-ink-muted">{step.body}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+
+          <div className="text-center">
+            <Button variant="primary" onClick={() => advanceTo(0, [])} className="min-w-48">
+              Start playing
+            </Button>
+            <p className="mt-3 text-xs text-ink-faint">Turn your sound on 🔊</p>
+          </div>
         </div>
       </GameShell>
     );
