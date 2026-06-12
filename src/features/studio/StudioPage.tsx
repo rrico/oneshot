@@ -80,12 +80,12 @@ export function StudioPage() {
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-6xl flex-1 gap-6 px-6 py-6 lg:grid-cols-[2fr_3fr] lg:overflow-hidden">
+      <main className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 gap-6 px-6 py-6 lg:grid-cols-[2fr_3fr] lg:overflow-hidden">
         <SearchPane onAdd={addTrack} addedIds={addedIds} />
 
         <section aria-label="Your playlist" className="flex min-h-0 flex-col gap-4">
-          <PlaylistPane tracks={tracks} onRemove={removeTrack} onMove={moveTrack} />
           <ShareLinkBar shareUrl={shareUrl} trackCount={tracks.length} onTestPlay={openTestPlay} />
+          <PlaylistPane tracks={tracks} onRemove={removeTrack} onMove={moveTrack} />
         </section>
       </main>
 

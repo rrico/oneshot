@@ -31,7 +31,7 @@ export function ShareLinkBar({ shareUrl, trackCount, onTestPlay }: ShareLinkBarP
   };
 
   return (
-    <div className="rounded-2xl border border-edge bg-panel p-4">
+    <div className="shrink-0 rounded-2xl border border-edge bg-panel p-4">
       {shareUrl ? (
         <>
           <div className="mb-3 flex items-center gap-2">
