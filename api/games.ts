@@ -30,11 +30,12 @@ export default async function handler(request: Request): Promise<Response> {
     return json({ error: 'Invalid JSON' }, 400);
   }
 
+  const bodyObj = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : null;
+  const rawIds = bodyObj?.trackIds;
   if (
-    typeof body !== 'object' ||
-    body === null ||
-    !Array.isArray((body as Record<string, unknown>).trackIds) ||
-    !(body as Record<string, unknown>).trackIds.every((id: unknown) => typeof id === 'number' && Number.isInteger(id) && id > 0)
+    !bodyObj ||
+    !Array.isArray(rawIds) ||
+    !(rawIds as unknown[]).every((id) => typeof id === 'number' && Number.isInteger(id) && id > 0)
   ) {
     return json({ error: 'Invalid playlist: trackIds must be a non-empty array of positive integers' }, 400);
   }
