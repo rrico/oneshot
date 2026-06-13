@@ -1,4 +1,4 @@
-import { createHashRouter } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import { LandingPage } from '@/features/landing/LandingPage';
 import { StudioPage } from '@/features/studio/StudioPage';
 import { PlayPage } from '@/features/play/PlayPage';
@@ -12,10 +12,11 @@ export const ROUTES = {
   results: '/results',
 } as const;
 
-export const router = createHashRouter([
+export const router = createBrowserRouter([
   { path: ROUTES.home, element: <LandingPage />, errorElement: <RouteErrorBoundary /> },
   { path: ROUTES.create, element: <StudioPage />, errorElement: <RouteErrorBoundary /> },
   { path: ROUTES.play, element: <PlayPage />, errorElement: <RouteErrorBoundary /> },
   { path: ROUTES.results, element: <ResultsPage />, errorElement: <RouteErrorBoundary /> },
+  { path: '/g/:code', element: <PlayPage />, errorElement: <RouteErrorBoundary /> },
   { path: '*', element: <LandingPage /> },
 ]);

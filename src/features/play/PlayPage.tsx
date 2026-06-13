@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import type { Track, TrackResult } from '@/types';
-import { decodePlaylistParam } from '@/lib/playlist-codec';
-import { deezerFetchTrack } from '@/lib/deezer';
+import { decodePlaylistParam, encodePlaylist } from '@/lib/playlist-codec';
+import { appError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
+import { deezerFetchTrack } from '@/lib/deezer';
 import { GameShell } from '@/components/game/GameShell';
 import { Round } from '@/components/game/Round';
 import { Button } from '@/components/ui/Button';
@@ -20,48 +21,96 @@ type PlayPhase =
   | { kind: 'unplayable-notice'; index: number }
   | { kind: 'recap'; endedEarly?: boolean };
 
-export function PlayPage() {
-  const [searchParams] = useSearchParams();
-  const decoded = useMemo(() => decodePlaylistParam(searchParams.get('d')), [searchParams]);
+async function hydrateTracks(trackIds: number[]): Promise<LoadedTrack[]> {
+  return Promise.all(
+    trackIds.map(async (id): Promise<LoadedTrack> => {
+      try {
+        const track = await deezerFetchTrack(id);
+        return { id, track: track.previewUrl ? track : null };
+      } catch {
+        return { id, track: null };
+      }
+    }),
+  );
+}
 
+export function PlayPage() {
+  const { code } = useParams<{ code?: string }>();
+  const [searchParams] = useSearchParams();
+  const dParam = searchParams.get('d');
+
+  const [playlist, setPlaylist] = useState<{ title?: string; trackIds: number[] } | null>(null);
   const [loaded, setLoaded] = useState<LoadedTrack[] | null>(null);
   const [phase, setPhase] = useState<PlayPhase | null>(null);
   const [results, setResults] = useState<TrackResult[]>([]);
 
-  // Hydrate: fetch every track in the playlist (FR9a -> FR9b handoff).
+  // Used by RecapView to build results-share URLs
+  const shareParam = useMemo(() => {
+    if (!playlist) return '';
+    try {
+      return encodePlaylist(playlist);
+    } catch {
+      return '';
+    }
+  }, [playlist]);
+
   useEffect(() => {
-    if (!decoded.ok) {
-      setPhase({ kind: 'bad-link', error: decoded.error });
-      return;
-    }
-    if (decoded.playlist.trackIds.length === 0) {
-      setPhase({ kind: 'empty' });
-      return;
-    }
     let cancelled = false;
-    setPhase({ kind: 'loading', total: decoded.playlist.trackIds.length });
-    void Promise.all(
-      decoded.playlist.trackIds.map(async (id): Promise<LoadedTrack> => {
-        try {
-          const track = await deezerFetchTrack(id);
-          return { id, track: track.previewUrl ? track : null };
-        } catch {
-          return { id, track: null };
-        }
-      }),
-    ).then((tracks) => {
-      if (cancelled) return;
-      setLoaded(tracks);
-      // Land on an intro screen first — share-link visitors arrive with zero
-      // context, and the Start click doubles as the audio-unlock gesture.
-      setPhase({ kind: 'ready' });
-    });
+
+    if (code) {
+      // Load by short code from /g/:code
+      setPhase({ kind: 'loading', total: 0 });
+      fetch(`/api/games/${code}`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+        .then(async (data: { title?: string | null; trackIds: number[] }) => {
+          if (cancelled) return;
+          const trackIds = data.trackIds ?? [];
+          if (trackIds.length === 0) {
+            setPhase({ kind: 'empty' });
+            return;
+          }
+          const pl = { title: data.title ?? undefined, trackIds };
+          setPlaylist(pl);
+          setPhase({ kind: 'loading', total: trackIds.length });
+          const tracks = await hydrateTracks(trackIds);
+          if (cancelled) return;
+          setLoaded(tracks);
+          setPhase({ kind: 'ready' });
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setPhase({
+              kind: 'bad-link',
+              error: appError('Game not found', 'This game link is invalid or has expired.', 'copy-link'),
+            });
+          }
+        });
+    } else {
+      // Load by ?d= param (legacy inline encoding)
+      const decoded = decodePlaylistParam(dParam);
+      if (!decoded.ok) {
+        setPhase({ kind: 'bad-link', error: decoded.error });
+        return;
+      }
+      if (decoded.playlist.trackIds.length === 0) {
+        setPhase({ kind: 'empty' });
+        return;
+      }
+      setPlaylist(decoded.playlist);
+      setPhase({ kind: 'loading', total: decoded.playlist.trackIds.length });
+      void hydrateTracks(decoded.playlist.trackIds).then((tracks) => {
+        if (cancelled) return;
+        setLoaded(tracks);
+        setPhase({ kind: 'ready' });
+      });
+    }
+
     return () => {
       cancelled = true;
     };
-  }, [decoded]);
+  }, [code, dParam]);
 
-  const playlistTitle = decoded.ok ? decoded.playlist.title : undefined;
+  const playlistTitle = playlist?.title;
   const total = loaded?.length ?? 0;
 
   const tracksById = useMemo(() => {
@@ -222,7 +271,7 @@ export function PlayPage() {
         playlistTitle={playlistTitle}
         results={results}
         tracksById={tracksById}
-        shareParam={searchParams.get('d') ?? ''}
+        shareParam={shareParam}
         finishedEarly={phase.endedEarly ?? false}
       />
     );
@@ -237,7 +286,7 @@ export function PlayPage() {
   const finishEarly = (result: TrackResult) => {
     const remaining: TrackResult[] = loaded!
       .slice(phase.index + 1)
-      .map((entry) => ({ trackId: entry.id, outcome: entry.track === null ? 'unplayable' : 'skipped' }));
+      .map((e) => ({ trackId: e.id, outcome: e.track === null ? 'unplayable' : 'skipped' }));
     setResults([...results, result, ...remaining]);
     setPhase({ kind: 'recap', endedEarly: true });
   };

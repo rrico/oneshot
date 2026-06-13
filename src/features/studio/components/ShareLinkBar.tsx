@@ -1,27 +1,29 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 
+type ShareStatus = 'idle' | 'creating' | 'ready' | 'error';
+
 interface ShareLinkBarProps {
-  shareUrl: string | null;
   trackCount: number;
+  shareStatus: ShareStatus;
+  shortUrl: string | null;
+  onCreateLink: () => Promise<string | null>;
   onTestPlay: () => void;
 }
 
-const WARN_LENGTH = 1500;
-const DANGER_LENGTH = 1900;
-
-/** Pinned share bar: live URL, length meter, test play, copy (UX-DR10). */
-export function ShareLinkBar({ shareUrl, trackCount, onTestPlay }: ShareLinkBarProps) {
+/** Pinned share bar: async short-link creation, copy, and test play. */
+export function ShareLinkBar({ trackCount, shareStatus, shortUrl, onCreateLink, onTestPlay }: ShareLinkBarProps) {
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
 
-  const length = shareUrl?.length ?? 0;
-  const lengthState = length >= DANGER_LENGTH ? 'danger' : length >= WARN_LENGTH ? 'warn' : 'ok';
-
-  const copy = async () => {
-    if (!shareUrl) return;
+  const handleCopy = async () => {
+    let url = shortUrl;
+    if (!url) {
+      url = await onCreateLink();
+      if (!url) return;
+    }
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(url);
       setCopied(true);
       setCopyFailed(false);
       setTimeout(() => setCopied(false), 2000);
@@ -30,43 +32,51 @@ export function ShareLinkBar({ shareUrl, trackCount, onTestPlay }: ShareLinkBarP
     }
   };
 
+  const buttonLabel =
+    shareStatus === 'creating'
+      ? 'Creating link…'
+      : copied
+        ? '✓ Link copied'
+        : shortUrl
+          ? 'Copy link'
+          : 'Get link';
+
   return (
     <div className="shrink-0 rounded-2xl border border-edge bg-panel p-4">
-      {shareUrl ? (
+      {trackCount === 0 ? (
+        <p className="text-center text-sm text-ink-muted">Add songs to get your game link.</p>
+      ) : (
         <>
-          <div className="mb-3 flex items-center gap-2">
-            <p className="min-w-0 flex-1 truncate rounded-lg bg-surface px-3 py-2 text-xs text-ink-muted" title={shareUrl}>
-              {shareUrl}
-            </p>
-            <span
-              className={`shrink-0 text-xs tabular-nums ${
-                lengthState === 'danger' ? 'text-danger' : lengthState === 'warn' ? 'text-warn' : 'text-ink-faint'
-              }`}
+          {shortUrl && (
+            <p
+              className="mb-3 min-w-0 truncate rounded-lg bg-surface px-3 py-2 text-xs text-ink-muted"
+              title={shortUrl}
             >
-              {length} chars
-            </span>
-          </div>
-          {lengthState !== 'ok' && (
-            <p className="mb-3 text-xs text-warn">
-              {lengthState === 'danger'
-                ? '⚠ This link is very long and may get cut off by some chat apps. Consider fewer tracks or a shorter name.'
-                : 'Heads up: long links can get truncated by some platforms.'}
+              {shortUrl}
+            </p>
+          )}
+          {shareStatus === 'error' && (
+            <p role="alert" className="mb-3 text-xs text-danger">
+              Couldn't create link. Check your connection and try again.
             </p>
           )}
           {copyFailed && (
             <p role="alert" className="mb-3 text-xs text-danger">
-              Couldn't access the clipboard — select the link above and copy it manually.
+              Couldn't copy — select the link above and copy it manually.
             </p>
           )}
           <div className="flex items-center gap-3">
-            <Button variant="primary" onClick={() => void copy()} className="flex-1">
-              {copied ? '✓ Link copied' : 'Copy link'}
+            <Button
+              variant="primary"
+              onClick={() => void handleCopy()}
+              disabled={shareStatus === 'creating'}
+              className="flex-1"
+            >
+              {buttonLabel}
             </Button>
             <Button onClick={onTestPlay}>Test play</Button>
           </div>
         </>
-      ) : (
-        <p className="text-center text-sm text-ink-muted">Add songs to get your game link.</p>
       )}
       {trackCount > 0 && (
         <p className="mt-3 text-center text-xs text-ink-faint">

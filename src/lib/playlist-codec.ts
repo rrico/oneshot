@@ -97,11 +97,10 @@ export function decodePlaylistParam(param: string | null | undefined): DecodeRes
   return { ok: true, playlist: result.data };
 }
 
-/** Build a full shareable URL for the current origin/path. */
+/** Build a long-form shareable URL (fallback; prefer short /g/:code links via the API). */
 export function buildShareUrl(playlist: Playlist): string {
   const payload = encodePlaylist(playlist);
-  const base = `${window.location.origin}${window.location.pathname}`;
-  return `${base}#/play?d=${payload}`;
+  return `${window.location.origin}/play?d=${payload}`;
 }
 
 // --- Run results payload (shared results page) ------------------------------
@@ -153,6 +152,5 @@ export function decodeResultsParam(param: string | null | undefined, expectedLen
 
 /** Build a URL to the shared results page for a finished run. */
 export function buildResultsUrl(playlistParam: string, results: Array<{ outcome: RoundOutcome; winningAttempt?: number }>): string {
-  const base = `${window.location.origin}${window.location.pathname}`;
-  return `${base}#/results?d=${playlistParam}&r=${encodeResults(results)}`;
+  return `${window.location.origin}/results?d=${playlistParam}&r=${encodeResults(results)}`;
 }

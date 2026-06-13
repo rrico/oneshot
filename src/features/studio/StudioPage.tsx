@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Track } from '@/types';
-import { buildShareUrl, MAX_TITLE_LENGTH, MAX_TRACKS } from '@/lib/playlist-codec';
+import { encodePlaylist, MAX_TITLE_LENGTH, MAX_TRACKS } from '@/lib/playlist-codec';
 import { audioEngine } from '@/lib/audio/engine';
 import { Dialog } from '@/components/ui/Dialog';
 import { Round } from '@/components/game/Round';
@@ -12,21 +12,68 @@ import { PlaylistPane } from './components/PlaylistPane';
 import { ShareLinkBar } from './components/ShareLinkBar';
 import type { TrackResult } from '@/types';
 
+type ShareStatus = 'idle' | 'creating' | 'ready' | 'error';
+
 export function StudioPage() {
   const [title, setTitle] = useState('');
   const [tracks, setTracks] = useState<Track[]>([]);
   const [testTrack, setTestTrack] = useState<Track | null>(null);
   const [testResult, setTestResult] = useState<TrackResult | null>(null);
 
+  const [shareStatus, setShareStatus] = useState<ShareStatus>('idle');
+  const [shareCode, setShareCode] = useState<string | null>(null);
+  const [shareSnapshot, setShareSnapshot] = useState<string>('');
+
   const addedIds = useMemo(() => new Set(tracks.map((t) => t.id)), [tracks]);
 
-  const shareUrl = useMemo(() => {
-    if (tracks.length === 0) return null;
-    return buildShareUrl({
-      title: title.trim() === '' ? undefined : title.trim(),
-      trackIds: tracks.map((t) => t.id),
-    });
+  const currentSnapshot = useMemo(() => {
+    if (tracks.length === 0) return '';
+    try {
+      return encodePlaylist({
+        title: title.trim() === '' ? undefined : title.trim(),
+        trackIds: tracks.map((t) => t.id),
+      });
+    } catch {
+      return '';
+    }
   }, [title, tracks]);
+
+  // Reset share state when the playlist changes after a code was created
+  const effectiveShareStatus: ShareStatus =
+    shareStatus === 'ready' && shareSnapshot !== currentSnapshot ? 'idle' : shareStatus;
+  const shortUrl =
+    effectiveShareStatus === 'ready' && shareCode
+      ? `${window.location.origin}/g/${shareCode}`
+      : null;
+
+  const handleCreateLink = useCallback(async (): Promise<string | null> => {
+    // Re-use existing code if the playlist hasn't changed
+    if (shareStatus === 'ready' && shareSnapshot === currentSnapshot && shareCode) {
+      return `${window.location.origin}/g/${shareCode}`;
+    }
+
+    setShareStatus('creating');
+    try {
+      const playlist = {
+        title: title.trim() === '' ? undefined : title.trim(),
+        trackIds: tracks.map((t) => t.id),
+      };
+      const res = await fetch('/api/games', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(playlist),
+      });
+      if (!res.ok) throw new Error('API error');
+      const { code } = (await res.json()) as { code: string };
+      setShareCode(code);
+      setShareSnapshot(currentSnapshot);
+      setShareStatus('ready');
+      return `${window.location.origin}/g/${code}`;
+    } catch {
+      setShareStatus('error');
+      return null;
+    }
+  }, [shareStatus, shareSnapshot, shareCode, currentSnapshot, title, tracks]);
 
   const addTrack = (track: Track) => {
     if (tracks.length >= MAX_TRACKS || addedIds.has(track.id)) return;
@@ -84,7 +131,13 @@ export function StudioPage() {
         <SearchPane onAdd={addTrack} addedIds={addedIds} />
 
         <section aria-label="Your playlist" className="flex min-h-0 flex-col gap-4">
-          <ShareLinkBar shareUrl={shareUrl} trackCount={tracks.length} onTestPlay={openTestPlay} />
+          <ShareLinkBar
+            trackCount={tracks.length}
+            shareStatus={effectiveShareStatus}
+            shortUrl={shortUrl}
+            onCreateLink={handleCreateLink}
+            onTestPlay={openTestPlay}
+          />
           <PlaylistPane tracks={tracks} onRemove={removeTrack} onMove={moveTrack} />
         </section>
       </main>
