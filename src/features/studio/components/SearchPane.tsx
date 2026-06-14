@@ -50,7 +50,7 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
   }, [query]);
 
   return (
-    <section aria-label="Search tracks" className="flex min-h-0 flex-col">
+    <section aria-label="Search tracks" className="flex min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="relative mb-4">
         <input
           type="text"
@@ -75,7 +75,7 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-3">
         {isLoadingSearch && (
           <ul className="space-y-2" aria-label="Loading search results">
             {Array.from({ length: 5 }, (_, i) => (
