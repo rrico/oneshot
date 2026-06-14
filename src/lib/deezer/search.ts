@@ -3,38 +3,78 @@ import { normalizeForMatch } from '@/lib/utils';
 import { jsonpRequest, DeezerError } from './client';
 import { isDeezerErrorDto, toTrack, type DeezerSearchResponseDto } from './types';
 
-/**
- * Pull a wide page from Deezer so a correct title+artist match is never
- * stranded outside the window. Deezer's default relevance can bury the exact
- * track behind covers, remixes, or more-popular look-alikes, so we cast a
- * wide net and let the client-side re-rank surface the user's typed match.
- */
 const SEARCH_LIMIT = 50;
 
 export async function deezerSearchTracks(query: string): Promise<Track[]> {
   const trimmed = query.trim();
   if (trimmed === '') return [];
 
-  const response = await jsonpRequest<DeezerSearchResponseDto>('/search', {
-    q: trimmed,
-    limit: String(SEARCH_LIMIT),
-  });
+  // Fetch two pages in parallel to double the result pool.
+  // Deezer's default ranking can bury correct matches (live versions, exact
+  // titles behind covers, catalog-restricted artists) when popularity wins.
+  const [page1, page2] = await Promise.all([
+    jsonpRequest<DeezerSearchResponseDto>('/search', {
+      q: trimmed,
+      limit: String(SEARCH_LIMIT),
+      index: '0',
+    }),
+    jsonpRequest<DeezerSearchResponseDto>('/search', {
+      q: trimmed,
+      limit: String(SEARCH_LIMIT),
+      index: String(SEARCH_LIMIT),
+    }).catch(() => null), // page 2 failing is non-fatal
+  ]);
 
-  if (isDeezerErrorDto(response)) {
-    throw new DeezerError('api', response.error.message ?? 'Deezer search failed');
+  if (isDeezerErrorDto(page1)) {
+    throw new DeezerError('api', page1.error.message ?? 'Deezer search failed');
   }
-  if (!Array.isArray(response.data)) {
+  if (!Array.isArray(page1.data)) {
     throw new DeezerError('api', 'Unexpected Deezer search response');
   }
-  const tracks = response.data.map(toTrack);
-  return rankByQueryMatch(tracks, trimmed);
+
+  const page2Tracks =
+    page2 && !isDeezerErrorDto(page2) && Array.isArray(page2.data) ? page2.data : [];
+
+  // Merge pages, deduplicate by track ID (preserving page-1-first order)
+  const seen = new Set<number>();
+  const merged = [...page1.data, ...page2Tracks].filter((dto) => {
+    if (seen.has(dto.id)) return false;
+    seen.add(dto.id);
+    return true;
+  });
+
+  return rankByQueryMatch(merged.map(toTrack), trimmed);
 }
 
 /**
- * Stable re-rank that guarantees tracks whose title or artist actually
- * contains the user's typed tokens surface above unrelated tracks Deezer
- * may have ranked higher on global popularity. Order within a score tier is
- * preserved, so users still get Deezer's relevance signal as the tiebreaker.
+ * Strip parenthetical/bracketed version qualifiers from a title before
+ * exact-match scoring. This lets "Night Moves (Live)" match a query of
+ * "night moves" the same as an unqualified "Night Moves", so Deezer's own
+ * popularity ordering acts as the tiebreaker within equal-score tracks.
+ *
+ * Examples: "Yesterday (Remastered 2009)" → "Yesterday"
+ *           "Twist And Shout (Live At The BBC)" → "Twist And Shout"
+ */
+function stripQualifiers(s: string): string {
+  return s
+    .replace(/\s*\([^)]*\)/g, '') // (Live), (Remastered 2011), (Radio Edit) …
+    .replace(/\s*\[[^\]]*\]/g, '') // [Deluxe Edition], [Bonus Track] …
+    .trim();
+}
+
+/**
+ * Stable re-rank that surfaces tracks whose title/artist actually matches
+ * the user's typed query over unrelated tracks Deezer ranked by popularity.
+ *
+ * Score tiers (highest wins):
+ *   +1000  base title/artist (qualifiers stripped) exactly equals query
+ *   +200   title starts with the full query string
+ *   +100   title or artist contains the full query string
+ *   +50    combined title+artist field contains the query string
+ *   +1/tok per matched query token
+ *
+ * Within a score tier, Deezer's original page order is the tiebreaker,
+ * so their relevance/popularity signal still applies among equal matches.
  */
 function rankByQueryMatch(tracks: Track[], query: string): Track[] {
   const queryNorm = normalizeForMatch(query);
@@ -45,6 +85,9 @@ function rankByQueryMatch(tracks: Track[], query: string): Track[] {
   const scored = tracks.map((track, index) => {
     const titleNorm = normalizeForMatch(track.title);
     const artistNorm = normalizeForMatch(track.artist);
+    // Base forms strip qualifiers like "(Live)" for the exact-match check
+    const titleBase = normalizeForMatch(stripQualifiers(track.title));
+    const artistBase = normalizeForMatch(stripQualifiers(track.artist));
     const haystack = `${titleNorm} ${artistNorm}`;
     const haystackTokens = new Set(haystack.split(/\s+/).filter(Boolean));
     const matchedTokens = queryTokens.reduce(
@@ -53,13 +96,14 @@ function rankByQueryMatch(tracks: Track[], query: string): Track[] {
     );
 
     let score = matchedTokens;
-    if (titleNorm === queryNorm || artistNorm === queryNorm) score += 1000;
+    if (titleBase === queryNorm || artistBase === queryNorm) score += 1000;
+    if (titleNorm.startsWith(queryNorm) || artistNorm.startsWith(queryNorm)) score += 200;
     if (titleNorm.includes(queryNorm) || artistNorm.includes(queryNorm)) score += 100;
     if (haystack.includes(queryNorm)) score += 50;
 
     return { track, score, index };
   });
 
-  scored.sort((a, b) => (b.score - a.score) || (a.index - b.index));
+  scored.sort((a, b) => b.score - a.score || a.index - b.index);
   return scored.map((s) => s.track);
 }
