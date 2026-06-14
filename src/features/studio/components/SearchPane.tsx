@@ -94,12 +94,6 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
           <p className="px-1 py-3 text-sm text-ink-muted">No matches — try another title or artist.</p>
         )}
 
-        {!isLoadingSearch && query.trim() === '' && (
-          <p className="px-1 py-3 text-sm text-ink-faint">
-            Search for a song to start your game. Hover a result to preview it.
-          </p>
-        )}
-
         <ul className="space-y-2">
           {!isLoadingSearch &&
             results.map((track) => {

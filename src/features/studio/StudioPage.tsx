@@ -127,7 +127,7 @@ export function StudioPage() {
         </div>
       </header>
 
-      <main className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 gap-6 px-6 py-6 lg:grid-cols-[2fr_3fr] lg:overflow-hidden">
+      <main className="mx-auto grid min-h-0 w-full max-w-6xl gap-4 px-6 py-4 lg:flex-1 lg:grid-cols-[2fr_3fr] lg:gap-6 lg:overflow-hidden lg:py-6">
         <SearchPane onAdd={addTrack} addedIds={addedIds} />
 
         <section aria-label="Your playlist" className="flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
