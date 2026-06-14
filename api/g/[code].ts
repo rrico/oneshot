@@ -20,7 +20,7 @@ export default async function handler(request: Request): Promise<Response> {
 
   if (/^[a-z0-9]{7}$/.test(code)) {
     try {
-      const redis = Redis.fromEnv();
+      const redis = new Redis({ url: process.env.KV_REST_API_URL!, token: process.env.KV_REST_API_TOKEN! });
       const raw = await redis.get<string>(`game:${code}`);
       if (raw) {
         const game: { title?: string | null; trackIds?: number[] } =

@@ -21,7 +21,7 @@ export default async function handler(request: Request): Promise<Response> {
     return json({ error: 'Invalid code' }, 400);
   }
 
-  const redis = Redis.fromEnv();
+  const redis = new Redis({ url: process.env.KV_REST_API_URL!, token: process.env.KV_REST_API_TOKEN! });
   const raw = await redis.get<string>(`game:${code}`);
 
   if (!raw) {

@@ -50,7 +50,7 @@ export default async function handler(request: Request): Promise<Response> {
     return json({ error: 'title must be a string up to 120 characters' }, 400);
   }
 
-  const redis = Redis.fromEnv();
+  const redis = new Redis({ url: process.env.KV_REST_API_URL!, token: process.env.KV_REST_API_TOKEN! });
   const code = generateCode();
   const game = { trackIds, title: title ?? null };
 
