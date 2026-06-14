@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Track } from '@/types';
 import { encodePlaylist, MAX_TITLE_LENGTH, MAX_TRACKS } from '@/lib/playlist-codec';
@@ -14,15 +14,54 @@ import type { TrackResult } from '@/types';
 
 type ShareStatus = 'idle' | 'creating' | 'ready' | 'error';
 
+const DRAFT_KEY = 'oneshot:studio:draft';
+
+function loadDraft(): { title: string; tracks: Track[] } {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return { title: '', tracks: [] };
+    const data = JSON.parse(raw) as { title?: unknown; tracks?: unknown };
+    const tracks = Array.isArray(data.tracks)
+      ? data.tracks.filter(
+          (t): t is Track =>
+            typeof t === 'object' &&
+            t !== null &&
+            typeof (t as Track).id === 'number' &&
+            typeof (t as Track).title === 'string' &&
+            typeof (t as Track).artist === 'string',
+        )
+      : [];
+    return { title: typeof data.title === 'string' ? data.title : '', tracks };
+  } catch {
+    return { title: '', tracks: [] };
+  }
+}
+
 export function StudioPage() {
-  const [title, setTitle] = useState('');
-  const [tracks, setTracks] = useState<Track[]>([]);
+  const [title, setTitle] = useState(() => loadDraft().title);
+  const [tracks, setTracks] = useState<Track[]>(() => loadDraft().tracks);
   const [testTrack, setTestTrack] = useState<Track | null>(null);
   const [testResult, setTestResult] = useState<TrackResult | null>(null);
 
   const [shareStatus, setShareStatus] = useState<ShareStatus>('idle');
   const [shareCode, setShareCode] = useState<string | null>(null);
   const [shareSnapshot, setShareSnapshot] = useState<string>('');
+
+  // Persist draft on every change; clear when playlist is empty.
+  useEffect(() => {
+    try {
+      if (tracks.length === 0) {
+        localStorage.removeItem(DRAFT_KEY);
+      } else {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ title, tracks }));
+      }
+    } catch {}
+  }, [title, tracks]);
+
+  const handleNewPlaylist = () => {
+    setTitle('');
+    setTracks([]);
+  };
 
   const addedIds = useMemo(() => new Set(tracks.map((t) => t.id)), [tracks]);
 
@@ -121,9 +160,20 @@ export function StudioPage() {
             aria-label="Playlist name"
             className="w-full max-w-sm rounded-lg border border-transparent bg-transparent px-3 py-1.5 text-center text-base font-medium text-ink placeholder:text-ink-faint hover:border-edge focus:border-accent"
           />
-          <span className="shrink-0 text-xs text-ink-faint tabular-nums">
-            {tracks.length}/{MAX_TRACKS}
-          </span>
+          <div className="flex shrink-0 items-center gap-3">
+            {tracks.length > 0 && (
+              <button
+                onClick={handleNewPlaylist}
+                className="text-xs text-ink-muted hover:text-ink"
+              >
+                <span className="hidden sm:inline">New playlist</span>
+                <span className="sm:hidden">New</span>
+              </button>
+            )}
+            <span className="text-xs text-ink-faint tabular-nums">
+              {tracks.length}/{MAX_TRACKS}
+            </span>
+          </div>
         </div>
       </header>
 
