@@ -50,8 +50,8 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
   }, [query]);
 
   return (
-    <section aria-label="Search tracks" className="flex min-h-0 min-w-0 flex-col overflow-hidden">
-      <div className="relative mb-4">
+    <section aria-label="Search tracks" className="flex min-h-0 min-w-0 flex-col lg:overflow-hidden">
+      <div className="sticky top-0 z-10 mb-4 bg-surface pb-2 lg:static lg:bg-transparent lg:pb-0 relative">
         <input
           type="text"
           value={query}

@@ -234,6 +234,7 @@ export function Round({ track, nextLabel, onResolved, onFinishEarly, autoFocusGu
             onSelect={handleGuess}
             isAlreadyGuessed={(candidate) => alreadyGuessed(round, candidate)}
             onEmptySpace={togglePlayback}
+            currentTrack={track}
             autoFocus={autoFocusGuess}
           />
           <p className="text-xs text-ink-faint">

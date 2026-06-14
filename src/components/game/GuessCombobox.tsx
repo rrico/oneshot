@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { Track } from '@/types';
-import { deezerSearchTracks } from '@/lib/deezer';
+import { deezerSearchTracks, scoreTrackForQuery } from '@/lib/deezer';
 import { cn } from '@/lib/utils';
 
 interface GuessComboboxProps {
@@ -9,6 +9,12 @@ interface GuessComboboxProps {
   isAlreadyGuessed?: (track: Track) => boolean;
   /** Called when Space is pressed in an empty input (play/replay affordance). */
   onEmptySpace?: () => void;
+  /**
+   * The currently-playing track. When provided and the query matches its title
+   * or artist but Deezer didn't return it, it is injected at the top of results
+   * so the correct answer is always reachable.
+   */
+  currentTrack?: Track;
   placeholder?: string;
   autoFocus?: boolean;
   disabled?: boolean;
@@ -25,6 +31,7 @@ export function GuessCombobox({
   onSelect,
   isAlreadyGuessed,
   onEmptySpace,
+  currentTrack,
   placeholder = 'Type a song or artist…',
   autoFocus,
   disabled,
@@ -58,7 +65,13 @@ export function GuessCombobox({
       try {
         const tracks = await deezerSearchTracks(trimmed);
         if (seq !== requestSeq.current) return;
-        setResults(tracks);
+        // Inject the current track at the top if Deezer didn't return it but
+        // the query clearly matches its title or artist (score >= 100).
+        let finalTracks = tracks;
+        if (currentTrack && !tracks.some((t) => t.id === currentTrack.id) && scoreTrackForQuery(currentTrack, trimmed) >= 100) {
+          finalTracks = [currentTrack, ...tracks];
+        }
+        setResults(finalTracks);
         setHighlighted(0);
         setIsOpen(true);
         setSearchFailed(false);

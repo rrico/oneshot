@@ -3,6 +3,37 @@ import { normalizeForMatch } from '@/lib/utils';
 import { jsonpRequest, DeezerError } from './client';
 import { isDeezerErrorDto, toTrack, type DeezerSearchResponseDto } from './types';
 
+/**
+ * Score how well a track matches a search query using the same tiers as
+ * rankByQueryMatch. Returns 0 for no match. Scores >= 100 mean the query
+ * string appears directly in the title or artist.
+ */
+export function scoreTrackForQuery(track: Track, query: string): number {
+  const queryNorm = normalizeForMatch(query.trim());
+  if (queryNorm === '') return 0;
+  const queryTokens = queryNorm.split(/\s+/).filter(Boolean);
+  if (queryTokens.length === 0) return 0;
+
+  const titleNorm = normalizeForMatch(track.title);
+  const artistNorm = normalizeForMatch(track.artist);
+  const titleBase = normalizeForMatch(stripQualifiers(track.title));
+  const artistBase = normalizeForMatch(stripQualifiers(track.artist));
+  const haystack = `${titleNorm} ${artistNorm}`;
+  const haystackTokens = new Set(haystack.split(/\s+/).filter(Boolean));
+  const matchedTokens = queryTokens.reduce(
+    (count, tok) => count + (haystackTokens.has(tok) ? 1 : 0),
+    0,
+  );
+
+  let score = matchedTokens;
+  if (titleBase === queryNorm || artistBase === queryNorm) score += 1000;
+  if (titleNorm.startsWith(queryNorm) || artistNorm.startsWith(queryNorm)) score += 200;
+  if (titleNorm.includes(queryNorm) || artistNorm.includes(queryNorm)) score += 100;
+  if (haystack.includes(queryNorm)) score += 50;
+
+  return score;
+}
+
 const SEARCH_LIMIT = 50;
 
 export async function deezerSearchTracks(query: string): Promise<Track[]> {
@@ -82,27 +113,11 @@ function rankByQueryMatch(tracks: Track[], query: string): Track[] {
   const queryTokens = queryNorm.split(/\s+/).filter(Boolean);
   if (queryTokens.length === 0) return tracks;
 
-  const scored = tracks.map((track, index) => {
-    const titleNorm = normalizeForMatch(track.title);
-    const artistNorm = normalizeForMatch(track.artist);
-    // Base forms strip qualifiers like "(Live)" for the exact-match check
-    const titleBase = normalizeForMatch(stripQualifiers(track.title));
-    const artistBase = normalizeForMatch(stripQualifiers(track.artist));
-    const haystack = `${titleNorm} ${artistNorm}`;
-    const haystackTokens = new Set(haystack.split(/\s+/).filter(Boolean));
-    const matchedTokens = queryTokens.reduce(
-      (count, tok) => count + (haystackTokens.has(tok) ? 1 : 0),
-      0,
-    );
-
-    let score = matchedTokens;
-    if (titleBase === queryNorm || artistBase === queryNorm) score += 1000;
-    if (titleNorm.startsWith(queryNorm) || artistNorm.startsWith(queryNorm)) score += 200;
-    if (titleNorm.includes(queryNorm) || artistNorm.includes(queryNorm)) score += 100;
-    if (haystack.includes(queryNorm)) score += 50;
-
-    return { track, score, index };
-  });
+  const scored = tracks.map((track, index) => ({
+    track,
+    score: scoreTrackForQuery(track, query),
+    index,
+  }));
 
   scored.sort((a, b) => b.score - a.score || a.index - b.index);
   return scored.map((s) => s.track);
