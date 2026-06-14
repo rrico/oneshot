@@ -34,12 +34,12 @@ export function ShareLinkBar({ trackCount, shareStatus, shortUrl, onCreateLink, 
 
   const buttonLabel =
     shareStatus === 'creating'
-      ? 'Creating link…'
+      ? 'Creating…'
       : copied
-        ? '✓ Link copied'
+        ? '✓ Copied!'
         : shortUrl
-          ? 'Copy link'
-          : 'Get link';
+          ? 'Copy'
+          : 'Share game';
 
   return (
     <div className="shrink-0 rounded-2xl border border-edge bg-panel p-4">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Track } from '@/types';
 import { TrackPreviewButton } from './TrackPreviewButton';
 
@@ -11,6 +11,8 @@ interface PlaylistPaneProps {
 export function PlaylistPane({ tracks, onRemove, onMove }: PlaylistPaneProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const touchRef = useRef<{ index: number } | null>(null);
+  const touchDropRef = useRef<number | null>(null);
 
   if (tracks.length === 0) {
     return (
@@ -20,7 +22,11 @@ export function PlaylistPane({ tracks, onRemove, onMove }: PlaylistPaneProps) {
             🎵
           </p>
           <p className="font-medium text-ink">Your game is empty</p>
-          <p className="mt-1 text-sm text-ink-muted">Search for a song on the left and hit + to add it.</p>
+          <p className="mt-1 text-sm text-ink-muted">
+            <span className="hidden lg:inline">Search for a song on the left</span>
+            <span className="lg:hidden">Search above</span>
+            {' '}and hit + to add it.
+          </p>
         </div>
       </div>
     );
@@ -31,6 +37,7 @@ export function PlaylistPane({ tracks, onRemove, onMove }: PlaylistPaneProps) {
       {tracks.map((track, index) => (
         <li
           key={track.id}
+          data-track-index={index}
           draggable
           onDragStart={() => setDragIndex(index)}
           onDragEnd={() => {
@@ -53,7 +60,38 @@ export function PlaylistPane({ tracks, onRemove, onMove }: PlaylistPaneProps) {
               : 'border-edge/60 hover:bg-panel'
           }`}
         >
-          <span aria-hidden="true" className="cursor-grab text-ink-faint select-none" title="Drag to reorder">
+          <span
+            aria-hidden="true"
+            className="touch-none cursor-grab select-none text-ink-faint"
+            title="Drag to reorder"
+            onTouchStart={() => {
+              touchRef.current = { index };
+              touchDropRef.current = null;
+              setDragIndex(index);
+            }}
+            onTouchMove={(e) => {
+              if (!touchRef.current) return;
+              const touch = e.touches[0];
+              const el = document.elementFromPoint(touch.clientX, touch.clientY);
+              const li = el?.closest('[data-track-index]') as HTMLElement | null;
+              if (li) {
+                const idx = parseInt(li.dataset.trackIndex ?? '-1', 10);
+                if (idx >= 0 && idx !== touchRef.current.index) {
+                  touchDropRef.current = idx;
+                  setDropIndex(idx);
+                }
+              }
+            }}
+            onTouchEnd={() => {
+              const from = touchRef.current?.index ?? null;
+              const to = touchDropRef.current;
+              if (from !== null && to !== null && from !== to) onMove(from, to);
+              touchRef.current = null;
+              touchDropRef.current = null;
+              setDragIndex(null);
+              setDropIndex(null);
+            }}
+          >
             ⋮⋮
           </span>
           <span className="w-6 text-right text-xs text-ink-faint tabular-nums">{index + 1}</span>

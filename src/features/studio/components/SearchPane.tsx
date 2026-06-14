@@ -51,15 +51,29 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
 
   return (
     <section aria-label="Search tracks" className="flex min-h-0 flex-col">
-      <input
-        type="search"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search songs or artists…"
-        aria-label="Search Deezer for tracks"
-        autoFocus
-        className="mb-4 w-full rounded-xl border border-edge bg-panel px-4 py-3 text-base text-ink placeholder:text-ink-faint focus:border-accent"
-      />
+      <div className="relative mb-4">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+          }}
+          placeholder="Search songs or artists…"
+          aria-label="Search Deezer for tracks"
+          autoFocus
+          className={`w-full rounded-xl border border-edge bg-panel py-3 text-base text-ink placeholder:text-ink-faint focus:border-accent ${query ? 'pl-4 pr-10' : 'px-4'}`}
+        />
+        {query && (
+          <button
+            aria-label="Clear search"
+            onClick={() => setQuery('')}
+            className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-sm text-ink-faint hover:bg-panel-hover hover:text-ink"
+          >
+            ✕
+          </button>
+        )}
+      </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {isLoadingSearch && (
@@ -94,12 +108,12 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
               return (
                 <li
                   key={track.id}
-                  className="group flex items-center gap-3 rounded-xl border border-edge/60 bg-panel/60 px-3 py-2 hover:bg-panel"
+                  className={`group flex items-center gap-3 rounded-xl border border-edge/60 bg-panel/60 px-3 py-2 transition-opacity hover:bg-panel ${added ? 'opacity-60' : ''}`}
                 >
                   {track.artUrl ? (
-                    <img src={track.artUrl} alt="" className="h-10 w-10 rounded object-cover" />
+                    <img src={track.artUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
                   ) : (
-                    <span className="flex h-10 w-10 items-center justify-center rounded bg-surface text-ink-faint">♪</span>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-surface text-ink-faint">♪</span>
                   )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-ink">{track.title}</span>
@@ -107,18 +121,28 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
                       {track.artist} · {formatTime(track.durationSec)}
                     </span>
                   </span>
-                  <TrackPreviewButton track={track} />
-                  <button
-                    disabled={!addable}
-                    onClick={() => onAdd(track)}
-                    aria-label={added ? `${track.title} already added` : `Add ${track.title} to playlist`}
-                    title={
-                      added ? 'Already in your playlist' : track.previewUrl === '' ? 'No preview — cannot be guessed' : undefined
-                    }
-                    className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-edge text-base text-ink-muted transition-colors hover:border-success hover:text-success disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <span aria-hidden="true">{added ? '✓' : '+'}</span>
-                  </button>
+                  <span className="flex shrink-0 items-center gap-1">
+                    <TrackPreviewButton track={track} />
+                    <button
+                      disabled={!addable}
+                      onClick={() => onAdd(track)}
+                      aria-label={added ? `${track.title} already added` : `Add ${track.title} to playlist`}
+                      title={
+                        added
+                          ? 'Already in your playlist'
+                          : track.previewUrl === ''
+                            ? 'No preview — cannot be guessed'
+                            : undefined
+                      }
+                      className={`flex h-9 w-9 items-center justify-center rounded-full border text-base transition-colors ${
+                        added
+                          ? 'cursor-default border-success/60 text-success'
+                          : 'cursor-pointer border-edge text-ink-muted hover:border-success hover:text-success disabled:cursor-not-allowed disabled:opacity-40'
+                      }`}
+                    >
+                      <span aria-hidden="true">{added ? '✓' : '+'}</span>
+                    </button>
+                  </span>
                 </li>
               );
             })}
