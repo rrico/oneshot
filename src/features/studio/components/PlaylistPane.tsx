@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { Track } from '@/types';
+import { formatTime } from '@/lib/utils';
 import { TrackPreviewButton } from './TrackPreviewButton';
 
 interface PlaylistPaneProps {
@@ -94,15 +95,15 @@ export function PlaylistPane({ tracks, onRemove, onMove }: PlaylistPaneProps) {
           >
             ⋮⋮
           </span>
-          <span className="w-6 text-right text-xs text-ink-faint tabular-nums">{index + 1}</span>
+          <span className="hidden w-6 shrink-0 text-right text-xs text-ink-faint tabular-nums lg:inline">{index + 1}</span>
           {track.artUrl ? (
-            <img src={track.artUrl} alt="" className="h-10 w-10 rounded object-cover" />
+            <img src={track.artUrl} alt="" className="h-8 w-8 shrink-0 rounded object-cover lg:h-14 lg:w-14" />
           ) : (
-            <span className="flex h-10 w-10 items-center justify-center rounded bg-surface text-ink-faint">♪</span>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-surface text-ink-faint lg:h-14 lg:w-14">♪</span>
           )}
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm text-ink">{track.title}</span>
-            <span className="block truncate text-xs text-ink-muted">{track.artist}</span>
+            <span className="line-clamp-2 text-sm text-ink">{track.title}</span>
+            <span className="block truncate text-xs text-ink-muted">{track.artist} · {formatTime(track.durationSec)}</span>
           </span>
           <TrackPreviewButton track={track} />
           <span className="flex shrink-0 items-center gap-1">
@@ -110,7 +111,7 @@ export function PlaylistPane({ tracks, onRemove, onMove }: PlaylistPaneProps) {
               disabled={index === 0}
               onClick={() => onMove(index, index - 1)}
               aria-label={`Move ${track.title} up`}
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-ink-muted hover:bg-panel-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+              className="hidden h-8 w-8 cursor-pointer items-center justify-center rounded text-ink-muted hover:bg-panel-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-30 lg:flex"
             >
               ↑
             </button>
@@ -118,7 +119,7 @@ export function PlaylistPane({ tracks, onRemove, onMove }: PlaylistPaneProps) {
               disabled={index === tracks.length - 1}
               onClick={() => onMove(index, index + 1)}
               aria-label={`Move ${track.title} down`}
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-ink-muted hover:bg-panel-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+              className="hidden h-8 w-8 cursor-pointer items-center justify-center rounded text-ink-muted hover:bg-panel-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-30 lg:flex"
             >
               ↓
             </button>
