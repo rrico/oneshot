@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Track } from '@/types';
-import { deezerSearchTracks, deezerSearchArtists, deezerArtistTopTracks, DeezerError } from '@/lib/deezer';
+import {
+  deezerSearchTracks,
+  deezerSearchArtists,
+  deezerArtistTopTracks,
+  deezerGenreTracks,
+  DeezerError,
+} from '@/lib/deezer';
 import type { ArtistResult } from '@/lib/deezer';
 import { formatTime } from '@/lib/utils';
 import { TrackPreviewButton } from './TrackPreviewButton';
@@ -12,10 +18,28 @@ interface SearchPaneProps {
 
 const DEBOUNCE_MS = 300;
 
-type SearchTab = 'tracks' | 'artists';
+const GENRES = [
+  { id: 0,   name: 'Top Charts',  emoji: '🔥' },
+  { id: 132, name: 'Pop',         emoji: '🎤' },
+  { id: 116, name: 'Hip-Hop',     emoji: '🎧' },
+  { id: 152, name: 'Rock',        emoji: '🎸' },
+  { id: 113, name: 'Dance',       emoji: '🎛️' },
+  { id: 165, name: 'R&B',         emoji: '🎷' },
+  { id: 85,  name: 'Alternative', emoji: '🎹' },
+  { id: 129, name: 'Jazz',        emoji: '🎺' },
+  { id: 84,  name: 'Country',     emoji: '🤠' },
+  { id: 169, name: 'Soul & Funk', emoji: '🕺' },
+  { id: 98,  name: 'Classical',   emoji: '🎻' },
+  { id: 464, name: 'Metal',       emoji: '🤘' },
+] as const;
 
-interface ArtistDrillState {
-  artist: ArtistResult;
+type DrillKind = 'artist' | 'genre';
+
+interface DrillState {
+  kind: DrillKind;
+  label: string;
+  sublabel: string;
+  pictureUrl?: string;
   tracks: Track[];
   isLoading: boolean;
   error: string | null;
@@ -28,102 +52,84 @@ function formatFanCount(n: number): string {
 }
 
 export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
-  const [tab, setTab] = useState<SearchTab>('tracks');
   const [query, setQuery] = useState('');
-
-  // Track search state
   const [trackResults, setTrackResults] = useState<Track[]>([]);
-  const [isLoadingTracks, setIsLoadingTracks] = useState(false);
-  const [trackError, setTrackError] = useState<string | null>(null);
-
-  // Artist search state
   const [artistResults, setArtistResults] = useState<ArtistResult[]>([]);
-  const [isLoadingArtists, setIsLoadingArtists] = useState(false);
-  const [artistError, setArtistError] = useState<string | null>(null);
-
-  // Artist drill-down state (null = showing artist list)
-  const [drill, setDrill] = useState<ArtistDrillState | null>(null);
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [drill, setDrill] = useState<DrillState | null>(null);
   const requestSeq = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Reset drill-down when switching tabs or clearing query
+  // Unified search: track + artist in parallel
   useEffect(() => {
-    setDrill(null);
-  }, [tab]);
-
-  // Track search effect
-  useEffect(() => {
-    if (tab !== 'tracks') return;
+    if (drill) return;
     const trimmed = query.trim();
     if (trimmed === '') {
       setTrackResults([]);
-      setTrackError(null);
-      setIsLoadingTracks(false);
+      setArtistResults([]);
+      setSearchError(null);
+      setIsLoading(false);
       return;
     }
-    setIsLoadingTracks(true);
+    setIsLoading(true);
     const seq = ++requestSeq.current;
     const timer = setTimeout(async () => {
       try {
-        const tracks = await deezerSearchTracks(trimmed);
+        const [tracks, artists] = await Promise.all([
+          deezerSearchTracks(trimmed),
+          deezerSearchArtists(trimmed).catch(() => [] as ArtistResult[]),
+        ]);
         if (seq !== requestSeq.current) return;
         setTrackResults(tracks);
-        setTrackError(null);
+        setArtistResults(artists.slice(0, 2));
+        setSearchError(null);
       } catch (error) {
         if (seq !== requestSeq.current) return;
         setTrackResults([]);
-        setTrackError(
+        setArtistResults([]);
+        setSearchError(
           error instanceof DeezerError && error.kind === 'timeout'
             ? 'Search timed out — the catalog may be slow. Try again.'
             : 'Search is unavailable right now. Check your connection and try again.',
         );
       } finally {
-        if (seq === requestSeq.current) setIsLoadingTracks(false);
+        if (seq === requestSeq.current) setIsLoading(false);
       }
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [query, tab]);
-
-  // Artist search effect
-  useEffect(() => {
-    if (tab !== 'artists') return;
-    if (drill) return; // don't re-search while in drill-down
-    const trimmed = query.trim();
-    if (trimmed === '') {
-      setArtistResults([]);
-      setArtistError(null);
-      setIsLoadingArtists(false);
-      return;
-    }
-    setIsLoadingArtists(true);
-    const seq = ++requestSeq.current;
-    const timer = setTimeout(async () => {
-      try {
-        const artists = await deezerSearchArtists(trimmed);
-        if (seq !== requestSeq.current) return;
-        setArtistResults(artists);
-        setArtistError(null);
-      } catch (error) {
-        if (seq !== requestSeq.current) return;
-        setArtistResults([]);
-        setArtistError(
-          error instanceof DeezerError && error.kind === 'timeout'
-            ? 'Search timed out. Try again.'
-            : 'Search is unavailable right now. Check your connection and try again.',
-        );
-      } finally {
-        if (seq === requestSeq.current) setIsLoadingArtists(false);
-      }
-    }, DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [query, tab, drill]);
+  }, [query, drill]);
 
   const openArtistDrill = async (artist: ArtistResult) => {
-    setDrill({ artist, tracks: [], isLoading: true, error: null });
+    setDrill({
+      kind: 'artist',
+      label: artist.name,
+      sublabel: artist.nbFan > 0 ? formatFanCount(artist.nbFan) : 'Top tracks',
+      pictureUrl: artist.pictureUrl,
+      tracks: [],
+      isLoading: true,
+      error: null,
+    });
     try {
       const tracks = await deezerArtistTopTracks(artist.id);
-      setDrill({ artist, tracks, isLoading: false, error: null });
+      setDrill((prev) => prev ? { ...prev, tracks, isLoading: false } : null);
+    } catch {
+      setDrill((prev) => prev ? { ...prev, isLoading: false, error: 'Could not load tracks. Try again.' } : null);
+    }
+  };
+
+  const openGenreDrill = async (genreId: number, genreName: string, emoji: string) => {
+    setDrill({
+      kind: 'genre',
+      label: `${emoji} ${genreName}`,
+      sublabel: 'Top tracks',
+      tracks: [],
+      isLoading: true,
+      error: null,
+    });
+    try {
+      const tracks = await deezerGenreTracks(genreId);
+      setDrill((prev) => prev ? { ...prev, tracks, isLoading: false } : null);
     } catch {
       setDrill((prev) => prev ? { ...prev, isLoading: false, error: 'Could not load tracks. Try again.' } : null);
     }
@@ -134,60 +140,37 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
     setTimeout(() => inputRef.current?.focus(), 0);
   };
 
-  const switchTab = (next: SearchTab) => {
-    setTab(next);
-    setQuery('');
-    setTrackResults([]);
-    setArtistResults([]);
-    setTrackError(null);
-    setArtistError(null);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  };
-
-  const isLoading = tab === 'tracks' ? isLoadingTracks : isLoadingArtists;
-  const error = tab === 'tracks' ? trackError : artistError;
+  const isEmpty = query.trim() === '';
 
   return (
     <section aria-label="Search tracks" className="flex min-h-0 min-w-0 flex-col lg:overflow-hidden">
-      {/* Tab bar */}
-      <div className="mb-3 flex gap-1 rounded-xl bg-panel p-1">
-        {(['tracks', 'artists'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => switchTab(t)}
-            className={`flex-1 rounded-lg py-1.5 text-sm font-medium transition-colors ${
-              tab === t
-                ? 'bg-surface text-ink shadow-sm'
-                : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            {t === 'tracks' ? 'Tracks' : 'Artists'}
-          </button>
-        ))}
-      </div>
-
-      {/* Artist drill-down header */}
+      {/* Search input or drill header */}
       {drill ? (
         <div className="mb-3 flex items-center gap-3">
           <button
             onClick={closeDrill}
-            aria-label="Back to artist search"
+            aria-label={`Back to ${drill.kind === 'artist' ? 'search' : 'browse'}`}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-edge text-ink-muted hover:bg-panel hover:text-ink"
           >
             ←
           </button>
-          {drill.artist.pictureUrl ? (
-            <img src={drill.artist.pictureUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+          {drill.pictureUrl ? (
+            <img
+              src={drill.pictureUrl}
+              alt=""
+              className={`h-10 w-10 shrink-0 object-cover ${drill.kind === 'artist' ? 'rounded-full' : 'rounded'}`}
+            />
           ) : (
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-panel text-ink-faint">♪</span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-panel text-xl">
+              {drill.label.split(' ')[0]}
+            </span>
           )}
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-ink">{drill.artist.name}</p>
-            <p className="text-xs text-ink-muted">Top tracks</p>
+            <p className="truncate text-sm font-semibold text-ink">{drill.label}</p>
+            <p className="text-xs text-ink-muted">{drill.sublabel}</p>
           </div>
         </div>
       ) : (
-        /* Search input */
         <div className="sticky top-0 z-10 mb-4 bg-surface pb-2 lg:static lg:bg-transparent lg:pb-0 relative">
           <input
             ref={inputRef}
@@ -197,8 +180,8 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
             onKeyDown={(e) => {
               if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
             }}
-            placeholder={tab === 'tracks' ? 'Search songs or artists…' : 'Search artists…'}
-            aria-label={tab === 'tracks' ? 'Search Deezer for tracks' : 'Search Deezer for artists'}
+            placeholder="Search songs or artists…"
+            aria-label="Search Deezer for tracks or artists"
             autoFocus
             className={`w-full rounded-xl border border-edge bg-panel py-3 text-base text-ink placeholder:text-ink-faint focus:border-accent ${query ? 'pl-4 pr-10' : 'px-4'}`}
           />
@@ -214,102 +197,104 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
         </div>
       )}
 
-      {/* Results area */}
+      {/* Results / browse area */}
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-3">
-        {/* Artist drill-down track list */}
+
+        {/* Drill-down track list */}
         {drill && (
           <>
-            {drill.isLoading && (
-              <ul className="space-y-2" aria-label="Loading artist tracks">
-                {Array.from({ length: 8 }, (_, i) => (
-                  <li key={i} className="h-14 animate-pulse rounded-xl bg-panel" />
-                ))}
-              </ul>
-            )}
-            {!drill.isLoading && drill.error && (
-              <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-ink-muted">
-                ⚠ {drill.error}
-              </p>
-            )}
+            {drill.isLoading && <SkeletonList count={8} />}
+            {!drill.isLoading && drill.error && <ErrorBanner message={drill.error} />}
             {!drill.isLoading && !drill.error && drill.tracks.length === 0 && (
-              <p className="px-1 py-3 text-sm text-ink-muted">No playable tracks found for this artist.</p>
+              <p className="px-1 py-3 text-sm text-ink-muted">No playable tracks found.</p>
             )}
-            <TrackList tracks={drill.tracks} addedIds={addedIds} onAdd={onAdd} />
+            {!drill.isLoading && <TrackList tracks={drill.tracks} addedIds={addedIds} onAdd={onAdd} />}
           </>
         )}
 
-        {/* Track search results */}
-        {!drill && tab === 'tracks' && (
+        {/* Search results (unified tracks + artists) */}
+        {!drill && !isEmpty && (
           <>
-            {isLoading && (
-              <ul className="space-y-2" aria-label="Loading search results">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <li key={i} className="h-14 animate-pulse rounded-xl bg-panel" />
-                ))}
-              </ul>
-            )}
-            {!isLoading && error && (
-              <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-ink-muted">
-                ⚠ {error}
-              </p>
-            )}
-            {!isLoading && !error && query.trim() !== '' && trackResults.length === 0 && (
+            {isLoading && <SkeletonList count={5} />}
+            {!isLoading && searchError && <ErrorBanner message={searchError} />}
+            {!isLoading && !searchError && trackResults.length === 0 && artistResults.length === 0 && (
               <p className="px-1 py-3 text-sm text-ink-muted">No matches — try another title or artist.</p>
             )}
-            {!isLoading && <TrackList tracks={trackResults} addedIds={addedIds} onAdd={onAdd} />}
+            {!isLoading && !searchError && (
+              <>
+                {/* Artist suggestions — injected above track results */}
+                {artistResults.length > 0 && (
+                  <ul className="mb-3 space-y-1.5">
+                    {artistResults.map((artist) => (
+                      <li key={artist.id}>
+                        <button
+                          onClick={() => void openArtistDrill(artist)}
+                          className="group flex w-full items-center gap-3 rounded-xl border border-edge/40 bg-panel/40 px-3 py-2 text-left transition-colors hover:bg-panel"
+                        >
+                          {artist.pictureUrl ? (
+                            <img src={artist.pictureUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                          ) : (
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface text-ink-faint text-xs">♪</span>
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-ink">{artist.name}</span>
+                            <span className="block truncate text-xs text-ink-muted">
+                              Artist{artist.nbFan > 0 ? ` · ${formatFanCount(artist.nbFan)}` : ''}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-xs text-ink-faint group-hover:text-ink-muted">
+                            Browse →
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <TrackList tracks={trackResults} addedIds={addedIds} onAdd={onAdd} />
+              </>
+            )}
           </>
         )}
 
-        {/* Artist search results */}
-        {!drill && tab === 'artists' && (
-          <>
-            {isLoading && (
-              <ul className="space-y-2" aria-label="Loading artist results">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <li key={i} className="h-14 animate-pulse rounded-xl bg-panel" />
-                ))}
-              </ul>
-            )}
-            {!isLoading && error && (
-              <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-ink-muted">
-                ⚠ {error}
-              </p>
-            )}
-            {!isLoading && !error && query.trim() !== '' && artistResults.length === 0 && (
-              <p className="px-1 py-3 text-sm text-ink-muted">No artists found — try another name.</p>
-            )}
-            {!isLoading && !error && query.trim() === '' && (
-              <p className="px-1 py-3 text-sm text-ink-muted">Type an artist name to browse their top tracks.</p>
-            )}
-            {!isLoading && (
-              <ul className="space-y-2">
-                {artistResults.map((artist) => (
-                  <li key={artist.id}>
-                    <button
-                      onClick={() => void openArtistDrill(artist)}
-                      className="group flex w-full items-center gap-3 rounded-xl border border-edge/60 bg-panel/60 px-3 py-2 text-left transition-colors hover:bg-panel"
-                    >
-                      {artist.pictureUrl ? (
-                        <img src={artist.pictureUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
-                      ) : (
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface text-ink-faint">♪</span>
-                      )}
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm text-ink">{artist.name}</span>
-                        {artist.nbFan > 0 && (
-                          <span className="block truncate text-xs text-ink-muted">{formatFanCount(artist.nbFan)}</span>
-                        )}
-                      </span>
-                      <span className="shrink-0 text-xs text-ink-faint group-hover:text-ink-muted">→</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
+        {/* Browse by genre (empty state) */}
+        {!drill && isEmpty && (
+          <div>
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-faint">Browse by genre</p>
+            <ul className="grid grid-cols-3 gap-2">
+              {GENRES.map((genre) => (
+                <li key={genre.id}>
+                  <button
+                    onClick={() => void openGenreDrill(genre.id, genre.name, genre.emoji)}
+                    className="flex w-full flex-col items-center gap-1 rounded-xl border border-edge/60 bg-panel/60 px-2 py-3 text-center transition-colors hover:bg-panel"
+                  >
+                    <span className="text-xl leading-none">{genre.emoji}</span>
+                    <span className="text-xs text-ink-muted leading-tight">{genre.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </section>
+  );
+}
+
+function SkeletonList({ count }: { count: number }) {
+  return (
+    <ul className="space-y-2" aria-label="Loading">
+      {Array.from({ length: count }, (_, i) => (
+        <li key={i} className="h-14 animate-pulse rounded-xl bg-panel" />
+      ))}
+    </ul>
+  );
+}
+
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-ink-muted">
+      ⚠ {message}
+    </p>
   );
 }
 

@@ -2,6 +2,18 @@ import type { Track } from '@/types';
 import { jsonpRequest, DeezerError } from './client';
 import { isDeezerErrorDto, toTrack, type DeezerArtistResultDto, type DeezerTrackDto } from './types';
 
+export async function deezerGenreTracks(genreId: number): Promise<Track[]> {
+  const path = genreId === 0 ? '/chart/0/tracks' : `/chart/${genreId}/tracks`;
+  const response = await jsonpRequest<{ data: DeezerTrackDto[] }>(path, { limit: '50' });
+  if (isDeezerErrorDto(response)) {
+    throw new DeezerError('api', response.error.message ?? 'Failed to load genre tracks');
+  }
+  if (!Array.isArray(response.data)) {
+    throw new DeezerError('api', 'Unexpected response for genre tracks');
+  }
+  return response.data.map(toTrack).filter((t) => t.previewUrl !== '');
+}
+
 export interface ArtistResult {
   id: number;
   name: string;

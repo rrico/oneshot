@@ -1,5 +1,5 @@
 export { deezerSearchTracks, scoreTrackForQuery } from './search';
 export { deezerFetchTrack } from './track';
-export { deezerSearchArtists, deezerArtistTopTracks } from './artist';
+export { deezerSearchArtists, deezerArtistTopTracks, deezerGenreTracks } from './artist';
 export type { ArtistResult } from './artist';
 export { DeezerError } from './client';
