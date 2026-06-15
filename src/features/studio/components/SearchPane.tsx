@@ -58,6 +58,7 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [drill, setDrill] = useState<DrillState | null>(null);
+  const [genresOpen, setGenresOpen] = useState(false);
   const requestSeq = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -259,20 +260,31 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
         {/* Browse by genre (empty state) */}
         {!drill && isEmpty && (
           <div>
-            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-faint">Browse by genre</p>
-            <ul className="grid grid-cols-3 gap-2">
-              {GENRES.map((genre) => (
-                <li key={genre.id}>
-                  <button
-                    onClick={() => void openGenreDrill(genre.id, genre.name, genre.emoji)}
-                    className="flex w-full flex-col items-center gap-1 rounded-xl border border-edge/60 bg-panel/60 px-2 py-3 text-center transition-colors hover:bg-panel"
-                  >
-                    <span className="text-xl leading-none">{genre.emoji}</span>
-                    <span className="text-xs text-ink-muted leading-tight">{genre.name}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <button
+              onClick={() => setGenresOpen((o) => !o)}
+              aria-expanded={genresOpen}
+              className="mb-3 flex w-full items-center justify-between text-xs font-medium uppercase tracking-wide text-ink-faint hover:text-ink-muted"
+            >
+              <span>Browse by genre</span>
+              <span aria-hidden="true" className={`transition-transform duration-200 ${genresOpen ? 'rotate-180' : ''}`}>
+                ▾
+              </span>
+            </button>
+            {genresOpen && (
+              <ul className="grid grid-cols-3 gap-2">
+                {GENRES.map((genre) => (
+                  <li key={genre.id}>
+                    <button
+                      onClick={() => void openGenreDrill(genre.id, genre.name, genre.emoji)}
+                      className="flex w-full flex-col items-center gap-1 rounded-xl border border-edge/60 bg-panel/60 px-2 py-3 text-center transition-colors hover:bg-panel"
+                    >
+                      <span className="text-xl leading-none">{genre.emoji}</span>
+                      <span className="text-xs text-ink-muted leading-tight">{genre.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </div>
