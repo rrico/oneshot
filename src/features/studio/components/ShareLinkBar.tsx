@@ -7,16 +7,46 @@ interface ShareLinkBarProps {
   trackCount: number;
   shareStatus: ShareStatus;
   shortUrl: string | null;
+  creatorToken: string | null;
+  shareCode: string | null;
+  awaitingTitleConfirm: boolean;
   onCreateLink: () => Promise<string | null>;
   onTestPlay: () => void;
 }
 
 const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
+type CopyKey = 'player' | 'creator';
+
 /** Pinned share bar: async short-link creation, copy, and test play. */
-export function ShareLinkBar({ trackCount, shareStatus, shortUrl, onCreateLink, onTestPlay }: ShareLinkBarProps) {
-  const [copied, setCopied] = useState(false);
+export function ShareLinkBar({
+  trackCount,
+  shareStatus,
+  shortUrl,
+  creatorToken,
+  shareCode,
+  awaitingTitleConfirm,
+  onCreateLink,
+  onTestPlay,
+}: ShareLinkBarProps) {
+  const [copiedKey, setCopiedKey] = useState<CopyKey | null>(null);
   const [copyFailed, setCopyFailed] = useState(false);
+
+  const creatorUrl =
+    shareCode && creatorToken
+      ? `${window.location.origin}/dashboard/${shareCode}?token=${creatorToken}`
+      : null;
+
+  const copyText = async (key: CopyKey, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setCopyFailed(false);
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 2000);
+    } catch {
+      setCopyFailed(true);
+    }
+  };
 
   const handleShare = async () => {
     let url = shortUrl;
@@ -25,34 +55,39 @@ export function ShareLinkBar({ trackCount, shareStatus, shortUrl, onCreateLink, 
       if (!url) return;
     }
 
-    // On mobile use the native share sheet — avoids iOS Safari's clipboard
-    // gesture-expiry restriction that fires after an async network request.
     if (canNativeShare) {
       try {
         await navigator.share({ url });
       } catch (err) {
-        // AbortError = user dismissed the sheet; not an error worth surfacing
         if ((err as Error).name !== 'AbortError') setCopyFailed(true);
       }
       return;
     }
 
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setCopyFailed(false);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopyFailed(true);
-    }
+    await copyText('player', url);
   };
 
-  const buttonLabel =
+  const handleCopyCreator = async () => {
+    if (!creatorUrl) return;
+    if (canNativeShare) {
+      try {
+        await navigator.share({ url: creatorUrl, title: 'Your results link' });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') setCopyFailed(true);
+      }
+      return;
+    }
+    await copyText('creator', creatorUrl);
+  };
+
+  const shareButtonLabel =
     shareStatus === 'creating'
       ? 'Creating…'
-      : copied
-        ? '✓ Copied!'
-        : 'Share game';
+      : awaitingTitleConfirm
+        ? 'Confirm & share'
+        : copiedKey === 'player'
+          ? '✓ Copied!'
+          : 'Share game';
 
   return (
     <div className="shrink-0 rounded-2xl border border-edge bg-panel p-4">
@@ -66,6 +101,11 @@ export function ShareLinkBar({ trackCount, shareStatus, shortUrl, onCreateLink, 
               title={shortUrl}
             >
               {shortUrl}
+            </p>
+          )}
+          {awaitingTitleConfirm && (
+            <p className="mb-3 text-xs text-ink-muted">
+              We've suggested a name above — edit it or confirm to share.
             </p>
           )}
           {shareStatus === 'error' && (
@@ -85,10 +125,28 @@ export function ShareLinkBar({ trackCount, shareStatus, shortUrl, onCreateLink, 
               disabled={shareStatus === 'creating'}
               className="flex-1"
             >
-              {buttonLabel}
+              {shareButtonLabel}
             </Button>
             <Button onClick={onTestPlay}>Test play</Button>
           </div>
+
+          {creatorUrl && (
+            <div className="mt-4 rounded-xl border border-edge bg-surface p-3">
+              <p className="mb-1 text-xs font-medium text-ink-muted">Your results link — save this.</p>
+              <p className="mb-2 min-w-0 truncate text-xs text-ink-faint" title={creatorUrl}>
+                {creatorUrl}
+              </p>
+              <Button
+                onClick={() => void handleCopyCreator()}
+                className="w-full text-xs"
+              >
+                {copiedKey === 'creator' ? '✓ Copied!' : 'Copy results link'}
+              </Button>
+              <p className="mt-2 text-xs text-ink-faint">
+                This link gives access to results. Keep it — we can't recover it.
+              </p>
+            </div>
+          )}
         </>
       )}
       {trackCount > 0 && (

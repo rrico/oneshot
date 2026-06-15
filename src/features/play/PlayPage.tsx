@@ -16,7 +16,7 @@ type PlayPhase =
   | { kind: 'bad-link'; error: AppError }
   | { kind: 'loading'; total: number }
   | { kind: 'empty' }
-  | { kind: 'ready' }
+  | { kind: 'ready'; playCount?: number }
   | { kind: 'round'; index: number }
   | { kind: 'unplayable-notice'; index: number }
   | { kind: 'recap'; endedEarly?: boolean };
@@ -62,7 +62,7 @@ export function PlayPage() {
       setPhase({ kind: 'loading', total: 0 });
       fetch(`/api/games/${code}`)
         .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-        .then(async (data: { title?: string | null; trackIds: number[] }) => {
+        .then(async (data: { title?: string | null; trackIds: number[]; playCount?: number }) => {
           if (cancelled) return;
           const trackIds = data.trackIds ?? [];
           if (trackIds.length === 0) {
@@ -75,7 +75,7 @@ export function PlayPage() {
           const tracks = await hydrateTracks(trackIds);
           if (cancelled) return;
           setLoaded(tracks);
-          setPhase({ kind: 'ready' });
+          setPhase({ kind: 'ready', playCount: data.playCount });
         })
         .catch(() => {
           if (!cancelled) {
@@ -191,6 +191,11 @@ export function PlayPage() {
   }
 
   if (phase.kind === 'ready') {
+    const playCountLabel =
+      phase.playCount && phase.playCount > 0
+        ? `${phase.playCount} ${phase.playCount === 1 ? 'person has' : 'people have'} played this game`
+        : null;
+
     return (
       <GameShell title={playlistTitle} subtitle={`${total} track${total === 1 ? '' : 's'}`}>
         <div className="rounded-2xl border border-edge bg-panel p-8">
@@ -239,6 +244,9 @@ export function PlayPage() {
               Start playing
             </Button>
             <p className="mt-3 text-xs text-ink-faint">Turn your sound on 🔊</p>
+            {playCountLabel && (
+              <p className="mt-2 text-xs text-ink-faint">{playCountLabel}</p>
+            )}
           </div>
         </div>
       </GameShell>
@@ -272,6 +280,7 @@ export function PlayPage() {
         results={results}
         tracksById={tracksById}
         shareParam={shareParam}
+        gameCode={code}
         finishedEarly={phase.endedEarly ?? false}
       />
     );

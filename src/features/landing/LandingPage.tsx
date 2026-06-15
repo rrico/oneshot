@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { hasStoredGames } from '@/lib/gameStorage';
 
 const steps = [
   {
@@ -16,6 +18,12 @@ const steps = [
 ];
 
 export function LandingPage() {
+  const [showMyGames, setShowMyGames] = useState(false);
+
+  useEffect(() => {
+    setShowMyGames(hasStoredGames());
+  }, []);
+
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center px-6 py-16 text-center">
@@ -28,10 +36,16 @@ export function LandingPage() {
         </p>
         <Link
           to="/create"
-          className="mb-16 inline-flex min-h-12 items-center rounded-xl bg-ink px-8 text-base font-semibold text-surface transition-colors hover:bg-white"
+          className="mb-4 inline-flex min-h-12 items-center rounded-xl bg-ink px-8 text-base font-semibold text-surface transition-colors hover:bg-white"
         >
           Create a playlist
         </Link>
+        {showMyGames && (
+          <Link to="/dashboard" className="mb-12 text-sm text-ink-muted hover:text-ink">
+            Made one before? View your games →
+          </Link>
+        )}
+        {!showMyGames && <div className="mb-12" />}
 
         <div className="grid w-full gap-4 text-left sm:grid-cols-3">
           {steps.map((step, index) => (
