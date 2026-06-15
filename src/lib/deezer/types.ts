@@ -7,6 +7,15 @@ export interface DeezerArtistDto {
   name: string;
 }
 
+export interface DeezerArtistResultDto {
+  id: number;
+  name: string;
+  picture_medium?: string;
+  picture_big?: string;
+  nb_album?: number;
+  nb_fan?: number;
+}
+
 export interface DeezerAlbumDto {
   id: number;
   title: string;
