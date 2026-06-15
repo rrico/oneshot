@@ -41,22 +41,26 @@ export default async function handler(request: Request): Promise<Response> {
   const html = await htmlRes.text();
 
   const ogTags = `
+    <meta property="og:site_name" content="oneshot" />
     <meta property="og:title" content="${escHtml(title)}" />
     <meta property="og:description" content="${escHtml(description)}" />
     <meta property="og:image" content="${ogImageUrl}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:url" content="${canonicalUrl}" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escHtml(title)}" />
     <meta name="twitter:description" content="${escHtml(description)}" />
-    <meta name="twitter:image" content="${ogImageUrl}" />`;
+    <meta name="twitter:image" content="${ogImageUrl}" />
+    <meta name="twitter:image:width" content="1200" />
+    <meta name="twitter:image:height" content="630" />`;
 
   // Replace the generic OG tags in index.html with per-game ones
   const injected = html
-    .replace(/<meta property="og:title"[^>]*>/g, '')
-    .replace(/<meta property="og:description"[^>]*>/g, '')
-    .replace(/<meta property="og:type"[^>]*>/g, '')
-    .replace(/<meta name="twitter:card"[^>]*>/g, '')
+    .replace(/<meta property="og:[^"]*"[^>]*>/g, '')
+    .replace(/<meta name="twitter:[^"]*"[^>]*>/g, '')
     .replace('</head>', `${ogTags}\n  </head>`);
 
   return new Response(injected, {
