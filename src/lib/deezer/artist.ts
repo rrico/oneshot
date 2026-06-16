@@ -70,3 +70,18 @@ export async function deezerArtistTopTracks(artistId: number): Promise<Track[]> 
 
   return response.data.map(toTrack).filter((t) => t.previewUrl !== '');
 }
+
+export async function deezerArtistRadioTracks(artistId: number): Promise<Track[]> {
+  const response = await jsonpRequest<{ data: DeezerTrackDto[] }>(`/artist/${artistId}/radio`, {
+    limit: '50',
+  });
+
+  if (isDeezerErrorDto(response)) {
+    throw new DeezerError('api', response.error.message ?? 'Failed to load artist radio');
+  }
+  if (!Array.isArray(response.data)) {
+    throw new DeezerError('api', 'Unexpected response for artist radio');
+  }
+
+  return response.data.map(toTrack).filter((t) => t.previewUrl !== '');
+}

@@ -17,7 +17,7 @@ export function PlaylistPane({ tracks, onRemove, onMove }: PlaylistPaneProps) {
 
   if (tracks.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-edge p-8 text-center">
+      <div className="flex min-h-[10rem] items-center justify-center rounded-2xl border border-dashed border-edge p-8 text-center">
         <div>
           <p aria-hidden="true" className="mb-2 text-2xl">
             🎵
@@ -34,7 +34,7 @@ export function PlaylistPane({ tracks, onRemove, onMove }: PlaylistPaneProps) {
   }
 
   return (
-    <ol aria-label="Playlist tracks in game order" className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+    <ol aria-label="Playlist tracks in game order" className="space-y-2">
       {tracks.map((track, index) => (
         <li
           key={track.id}

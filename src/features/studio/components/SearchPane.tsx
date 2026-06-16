@@ -4,18 +4,16 @@ import {
   deezerSearchTracks,
   deezerSearchArtists,
   deezerArtistTopTracks,
+  deezerArtistRadioTracks,
   deezerGenreTracks,
-  deezerRecommendedTracks,
   DeezerError,
 } from '@/lib/deezer';
 import type { ArtistResult } from '@/lib/deezer';
-import { formatTime } from '@/lib/utils';
-import { TrackPreviewButton } from './TrackPreviewButton';
+import { TrackList, SkeletonList } from './TrackList';
 
 interface SearchPaneProps {
   onAdd: (track: Track) => void;
   addedIds: Set<number>;
-  playlistTracks: Track[];
 }
 
 const DEBOUNCE_MS = 300;
@@ -35,7 +33,7 @@ const GENRES = [
   { id: 464, name: 'Metal',       emoji: '🤘' },
 ] as const;
 
-type DrillKind = 'artist' | 'genre';
+type DrillKind = 'artist' | 'genre' | 'radio';
 
 interface DrillState {
   kind: DrillKind;
@@ -53,7 +51,7 @@ function formatFanCount(n: number): string {
   return `${n} fans`;
 }
 
-export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps) {
+export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
   const [query, setQuery] = useState('');
   const [trackResults, setTrackResults] = useState<Track[]>([]);
   const [artistResults, setArtistResults] = useState<ArtistResult[]>([]);
@@ -61,10 +59,7 @@ export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps)
   const [searchError, setSearchError] = useState<string | null>(null);
   const [drill, setDrill] = useState<DrillState | null>(null);
   const [genresOpen, setGenresOpen] = useState(false);
-  const [recommendations, setRecommendations] = useState<Track[]>([]);
-  const [recsLoading, setRecsLoading] = useState(false);
   const requestSeq = useRef(0);
-  const recSeq = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Unified search: track + artist in parallel
@@ -106,27 +101,6 @@ export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps)
     return () => clearTimeout(timer);
   }, [query, drill]);
 
-  // Fetch recommendations whenever the playlist changes (debounced)
-  useEffect(() => {
-    if (playlistTracks.length < 1) {
-      setRecommendations([]);
-      return;
-    }
-    const seq = ++recSeq.current;
-    setRecsLoading(true);
-    const timer = setTimeout(async () => {
-      const recs = await deezerRecommendedTracks(playlistTracks, addedIds);
-      if (seq !== recSeq.current) return;
-      setRecommendations(recs);
-      setRecsLoading(false);
-    }, 600);
-    return () => {
-      clearTimeout(timer);
-      if (seq === recSeq.current) setRecsLoading(false);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playlistTracks]);
-
   const openArtistDrill = async (artist: ArtistResult) => {
     setDrill({
       kind: 'artist',
@@ -142,6 +116,24 @@ export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps)
       setDrill((prev) => prev ? { ...prev, tracks, isLoading: false } : null);
     } catch {
       setDrill((prev) => prev ? { ...prev, isLoading: false, error: 'Could not load tracks. Try again.' } : null);
+    }
+  };
+
+  const openRadioDrill = async (artist: ArtistResult) => {
+    setDrill({
+      kind: 'radio',
+      label: `${artist.name} Radio`,
+      sublabel: 'Similar tracks mix',
+      pictureUrl: artist.pictureUrl,
+      tracks: [],
+      isLoading: true,
+      error: null,
+    });
+    try {
+      const tracks = await deezerArtistRadioTracks(artist.id);
+      setDrill((prev) => prev ? { ...prev, tracks, isLoading: false } : null);
+    } catch {
+      setDrill((prev) => prev ? { ...prev, isLoading: false, error: 'Could not load radio. Try again.' } : null);
     }
   };
 
@@ -176,7 +168,7 @@ export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps)
         <div className="mb-3 flex items-center gap-3">
           <button
             onClick={closeDrill}
-            aria-label={`Back to ${drill.kind === 'artist' ? 'search' : 'browse'}`}
+            aria-label="Back to search"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-edge text-ink-muted hover:bg-panel hover:text-ink"
           >
             ←
@@ -185,7 +177,7 @@ export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps)
             <img
               src={drill.pictureUrl}
               alt=""
-              className={`h-10 w-10 shrink-0 object-cover ${drill.kind === 'artist' ? 'rounded-full' : 'rounded'}`}
+              className="h-10 w-10 shrink-0 rounded-full object-cover"
             />
           ) : (
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-panel text-xl">
@@ -249,30 +241,39 @@ export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps)
             )}
             {!isLoading && !searchError && (
               <>
-                {/* Artist suggestions — injected above track results */}
+                {/* Artist suggestions with Browse + Radio actions */}
                 {artistResults.length > 0 && (
                   <ul className="mb-3 space-y-1.5">
                     {artistResults.map((artist) => (
-                      <li key={artist.id}>
-                        <button
-                          onClick={() => void openArtistDrill(artist)}
-                          className="group flex w-full items-center gap-3 rounded-xl border border-edge/40 bg-panel/40 px-3 py-2 text-left transition-colors hover:bg-panel"
-                        >
-                          {artist.pictureUrl ? (
-                            <img src={artist.pictureUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
-                          ) : (
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface text-ink-faint text-xs">♪</span>
-                          )}
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium text-ink">{artist.name}</span>
-                            <span className="block truncate text-xs text-ink-muted">
-                              Artist{artist.nbFan > 0 ? ` · ${formatFanCount(artist.nbFan)}` : ''}
-                            </span>
+                      <li
+                        key={artist.id}
+                        className="flex items-center gap-3 rounded-xl border border-edge/40 bg-panel/40 px-3 py-2 transition-colors hover:bg-panel"
+                      >
+                        {artist.pictureUrl ? (
+                          <img src={artist.pictureUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                        ) : (
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface text-ink-faint text-xs">♪</span>
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-ink">{artist.name}</span>
+                          <span className="block truncate text-xs text-ink-muted">
+                            Artist{artist.nbFan > 0 ? ` · ${formatFanCount(artist.nbFan)}` : ''}
                           </span>
-                          <span className="shrink-0 text-xs text-ink-faint group-hover:text-ink-muted">
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1.5">
+                          <button
+                            onClick={() => void openRadioDrill(artist)}
+                            className="rounded-lg border border-edge/60 px-2.5 py-1 text-xs text-ink-muted transition-colors hover:bg-panel-hover hover:text-ink"
+                          >
+                            Radio
+                          </button>
+                          <button
+                            onClick={() => void openArtistDrill(artist)}
+                            className="rounded-lg border border-edge/60 px-2.5 py-1 text-xs text-ink-muted transition-colors hover:bg-panel-hover hover:text-ink"
+                          >
                             Browse →
-                          </span>
-                        </button>
+                          </button>
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -281,22 +282,6 @@ export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps)
               </>
             )}
           </>
-        )}
-
-        {/* Recommendations (empty state, ≥1 track in playlist) */}
-        {!drill && isEmpty && playlistTracks.length >= 1 && (
-          <div className="mb-6">
-            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-faint">
-              Recommended for your playlist
-            </p>
-            {recsLoading && <SkeletonList count={4} />}
-            {!recsLoading && recommendations.length > 0 && (
-              <TrackList tracks={recommendations} addedIds={addedIds} onAdd={onAdd} />
-            )}
-            {!recsLoading && recommendations.length === 0 && (
-              <p className="px-1 py-2 text-sm text-ink-muted">No recommendations available yet.</p>
-            )}
-          </div>
         )}
 
         {/* Browse by genre (empty state) */}
@@ -334,78 +319,10 @@ export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps)
   );
 }
 
-function SkeletonList({ count }: { count: number }) {
-  return (
-    <ul className="space-y-2" aria-label="Loading">
-      {Array.from({ length: count }, (_, i) => (
-        <li key={i} className="h-14 animate-pulse rounded-xl bg-panel" />
-      ))}
-    </ul>
-  );
-}
-
 function ErrorBanner({ message }: { message: string }) {
   return (
     <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-ink-muted">
       ⚠ {message}
     </p>
-  );
-}
-
-interface TrackListProps {
-  tracks: Track[];
-  addedIds: Set<number>;
-  onAdd: (track: Track) => void;
-}
-
-function TrackList({ tracks, addedIds, onAdd }: TrackListProps) {
-  if (tracks.length === 0) return null;
-  return (
-    <ul className="space-y-2">
-      {tracks.map((track) => {
-        const added = addedIds.has(track.id);
-        const addable = !added && track.previewUrl !== '';
-        return (
-          <li
-            key={track.id}
-            className={`group flex items-center gap-3 rounded-xl border border-edge/60 bg-panel/60 px-3 py-2 transition-opacity hover:bg-panel ${added ? 'opacity-60' : ''}`}
-          >
-            {track.artUrl ? (
-              <img src={track.artUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
-            ) : (
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-surface text-ink-faint">♪</span>
-            )}
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm text-ink">{track.title}</span>
-              <span className="block truncate text-xs text-ink-muted">
-                {track.artist} · {formatTime(track.durationSec)}
-              </span>
-            </span>
-            <span className="flex shrink-0 items-center gap-1">
-              <TrackPreviewButton track={track} />
-              <button
-                disabled={!addable}
-                onClick={() => onAdd(track)}
-                aria-label={added ? `${track.title} already added` : `Add ${track.title} to playlist`}
-                title={
-                  added
-                    ? 'Already in your playlist'
-                    : track.previewUrl === ''
-                      ? 'No preview — cannot be guessed'
-                      : undefined
-                }
-                className={`flex h-9 w-9 items-center justify-center rounded-full border text-base transition-colors ${
-                  added
-                    ? 'cursor-default border-success/60 text-success'
-                    : 'cursor-pointer border-edge text-ink-muted hover:border-success hover:text-success disabled:cursor-not-allowed disabled:opacity-40'
-                }`}
-              >
-                <span aria-hidden="true">{added ? '✓' : '+'}</span>
-              </button>
-            </span>
-          </li>
-        );
-      })}
-    </ul>
   );
 }

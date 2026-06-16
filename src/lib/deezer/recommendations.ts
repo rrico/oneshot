@@ -1,19 +1,9 @@
 import type { Track } from '@/types';
-import { jsonpRequest } from './client';
-import { isDeezerErrorDto, toTrack, type DeezerTrackDto } from './types';
-
-async function fetchArtistRadio(artistId: number): Promise<Track[]> {
-  const response = await jsonpRequest<{ data: DeezerTrackDto[] }>(
-    `/artist/${artistId}/radio`,
-    { limit: '25' },
-  );
-  if (isDeezerErrorDto(response) || !Array.isArray(response.data)) return [];
-  return response.data.map(toTrack).filter((t) => t.previewUrl !== '');
-}
+import { deezerArtistRadioTracks } from './artist';
 
 /**
  * Returns recommended tracks based on artists in the current playlist.
- * Uses Deezer's /artist/{id}/radio endpoint — their own smartradio algorithm
+ * Uses Deezer's /artist/{id}/radio endpoint — their smartradio algorithm
  * seeded by the artist — for contextually relevant suggestions in one round-trip.
  */
 export async function deezerRecommendedTracks(
@@ -33,7 +23,7 @@ export async function deezerRecommendedTracks(
   if (seedArtistIds.length === 0) return [];
 
   // Fetch each seed artist's radio in parallel; failures are non-fatal
-  const radioBatches = await Promise.allSettled(seedArtistIds.map(fetchArtistRadio));
+  const radioBatches = await Promise.allSettled(seedArtistIds.map(deezerArtistRadioTracks));
 
   // Interleave results from each radio so every seed artist is represented,
   // then filter out tracks already in the playlist
