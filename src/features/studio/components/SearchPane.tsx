@@ -108,7 +108,7 @@ export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps)
 
   // Fetch recommendations whenever the playlist changes (debounced)
   useEffect(() => {
-    if (playlistTracks.length < 2) {
+    if (playlistTracks.length < 1) {
       setRecommendations([]);
       return;
     }
@@ -283,8 +283,8 @@ export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps)
           </>
         )}
 
-        {/* Recommendations (empty state, ≥2 tracks in playlist) */}
-        {!drill && isEmpty && playlistTracks.length >= 2 && (
+        {/* Recommendations (empty state, ≥1 track in playlist) */}
+        {!drill && isEmpty && playlistTracks.length >= 1 && (
           <div className="mb-6">
             <p className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-faint">
               Recommended for your playlist
