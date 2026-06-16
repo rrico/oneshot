@@ -305,10 +305,10 @@ export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps)
             <button
               onClick={() => setGenresOpen((o) => !o)}
               aria-expanded={genresOpen}
-              className="mb-3 flex w-full items-center justify-between text-xs font-medium uppercase tracking-wide text-ink-faint hover:text-ink-muted"
+              className="mb-3 flex w-full items-center justify-between rounded-xl border border-edge/60 bg-panel/60 px-4 py-2.5 text-sm font-medium text-ink-muted transition-colors hover:bg-panel hover:text-ink"
             >
               <span>Browse by genre</span>
-              <span aria-hidden="true" className={`transition-transform duration-200 ${genresOpen ? 'rotate-180' : ''}`}>
+              <span aria-hidden="true" className={`text-ink-faint transition-transform duration-200 ${genresOpen ? 'rotate-180' : ''}`}>
                 ▾
               </span>
             </button>
