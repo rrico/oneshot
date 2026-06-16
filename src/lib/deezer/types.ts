@@ -52,6 +52,7 @@ export function toTrack(dto: DeezerTrackDto): Track {
     id: dto.id,
     title: dto.title,
     artist: dto.artist?.name ?? 'Unknown artist',
+    artistId: dto.artist?.id,
     album: dto.album?.title ?? '',
     artUrl: dto.album?.cover_medium ?? dto.album?.cover_big ?? '',
     previewUrl: dto.readable === false ? '' : (dto.preview ?? ''),

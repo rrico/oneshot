@@ -5,6 +5,7 @@ import {
   deezerSearchArtists,
   deezerArtistTopTracks,
   deezerGenreTracks,
+  deezerRecommendedTracks,
   DeezerError,
 } from '@/lib/deezer';
 import type { ArtistResult } from '@/lib/deezer';
@@ -14,6 +15,7 @@ import { TrackPreviewButton } from './TrackPreviewButton';
 interface SearchPaneProps {
   onAdd: (track: Track) => void;
   addedIds: Set<number>;
+  playlistTracks: Track[];
 }
 
 const DEBOUNCE_MS = 300;
@@ -51,7 +53,7 @@ function formatFanCount(n: number): string {
   return `${n} fans`;
 }
 
-export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
+export function SearchPane({ onAdd, addedIds, playlistTracks }: SearchPaneProps) {
   const [query, setQuery] = useState('');
   const [trackResults, setTrackResults] = useState<Track[]>([]);
   const [artistResults, setArtistResults] = useState<ArtistResult[]>([]);
@@ -59,7 +61,10 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [drill, setDrill] = useState<DrillState | null>(null);
   const [genresOpen, setGenresOpen] = useState(false);
+  const [recommendations, setRecommendations] = useState<Track[]>([]);
+  const [recsLoading, setRecsLoading] = useState(false);
   const requestSeq = useRef(0);
+  const recSeq = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Unified search: track + artist in parallel
@@ -100,6 +105,27 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query, drill]);
+
+  // Fetch recommendations whenever the playlist changes (debounced)
+  useEffect(() => {
+    if (playlistTracks.length < 2) {
+      setRecommendations([]);
+      return;
+    }
+    const seq = ++recSeq.current;
+    setRecsLoading(true);
+    const timer = setTimeout(async () => {
+      const recs = await deezerRecommendedTracks(playlistTracks, addedIds);
+      if (seq !== recSeq.current) return;
+      setRecommendations(recs);
+      setRecsLoading(false);
+    }, 600);
+    return () => {
+      clearTimeout(timer);
+      if (seq === recSeq.current) setRecsLoading(false);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playlistTracks]);
 
   const openArtistDrill = async (artist: ArtistResult) => {
     setDrill({
@@ -255,6 +281,22 @@ export function SearchPane({ onAdd, addedIds }: SearchPaneProps) {
               </>
             )}
           </>
+        )}
+
+        {/* Recommendations (empty state, ≥2 tracks in playlist) */}
+        {!drill && isEmpty && playlistTracks.length >= 2 && (
+          <div className="mb-6">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-faint">
+              Recommended for your playlist
+            </p>
+            {recsLoading && <SkeletonList count={4} />}
+            {!recsLoading && recommendations.length > 0 && (
+              <TrackList tracks={recommendations} addedIds={addedIds} onAdd={onAdd} />
+            )}
+            {!recsLoading && recommendations.length === 0 && (
+              <p className="px-1 py-2 text-sm text-ink-muted">No recommendations available yet.</p>
+            )}
+          </div>
         )}
 
         {/* Browse by genre (empty state) */}
