@@ -75,6 +75,9 @@ export function StudioPage() {
     setTitle('');
     setTracks([]);
     setAwaitingTitleConfirm(false);
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {}
   };
 
   const addedIds = useMemo(() => new Set(tracks.map((t) => t.id)), [tracks]);
@@ -146,6 +149,11 @@ export function StudioPage() {
       setCreatorToken(token);
       setShareSnapshot(currentSnapshot);
       setShareStatus('ready');
+
+      // Shared playlists shouldn't resurface as a draft in a future creation flow.
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch {}
 
       // Persist to localStorage for the My Games dashboard
       saveStoredGame({
