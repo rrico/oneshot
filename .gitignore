@@ -4,4 +4,5 @@ dist
 *.tsbuildinfo
 *.local
 .env
-.vercel
+.wrangler
+.dev.vars*

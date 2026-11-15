@@ -4,7 +4,7 @@ Turn any playlist into a Heardle-style music guessing game. Build a playlist fro
 
 For each song, players get **six attempts** while progressively longer snippets unlock (**1s → 2s → 4s → 7s → 11s → 16s**). Skips and wrong guesses both cost an attempt. Finish the playlist and copy an emoji recap to paste back into the chat.
 
-**Live at:** https://one-shot-chi.vercel.app
+**Live at:** `https://oneshot.<your-subdomain>.workers.dev` (Cloudflare Workers)
 
 ## How it works
 
@@ -18,60 +18,96 @@ For each song, players get **six attempts** while progressively longer snippets 
 - Vite + React + TypeScript, Tailwind CSS v4
 - Path-based routing via React Router 7 `createBrowserRouter`
 - Deezer public API via JSONP (no key required), preview audio via `HTMLAudioElement`
-- Short-link backend: Vercel edge functions + Upstash Redis (via Vercel KV integration)
-- Dynamic OG image generation via `@vercel/og`
-- Deployed on Vercel
+- **Cloudflare Workers** with Static Assets: one Worker serves the SPA and the API
+- **Hono** router with **zod** request validation (`worker/`)
+- **D1** (SQLite) for games and results, **Workers Rate Limiting** for result submissions, a daily **Cron Trigger** to purge expired games
+- Dynamic OG images via `@cf-wasm/og` (Satori + resvg, WASM), edge-cached with the Cache API
+- `@cloudflare/vite-plugin` runs the Worker in `workerd` during `vite dev` and builds both halves on `vite build`
 
 ## Architecture
 
 ```
 /                   → Landing page
 /create             → Studio (playlist builder)
-/play?d=...         → Play (playlist encoded in URL — legacy / long links)
+/play?d=...         → Play (playlist encoded in URL)
 /g/:code            → Play (short link, loads game from API)
 /results?d=&r=...   → Results / recap view
+/dashboard          → My games (creator's games, from localStorage)
+/dashboard/:code    → Creator results dashboard
 
-/api/games          POST  Create a game → returns { code }
-/api/games/:code    GET   Fetch a game's track list
-/api/g/:code        GET   Serve index.html with injected OG tags (for unfurls)
-/api/og             GET   Dynamic OG image (1200×630)
+/api/games                POST  Create a game → { code, creatorToken }
+/api/games/:code          GET   Public game data → { trackIds, title, playCount }
+/api/games/:code/results  POST  Submit a finished run (rate limited per IP)
+/api/games/:code/results  GET   Aggregated results (?token= creator token or player session)
+/api/og                   GET   Dynamic OG image (1200×630 PNG)
+/g/:code                  GET   SPA shell with per-game OG tags injected (HTMLRewriter)
 ```
 
-Short links store `{ trackIds, title }` in Redis with a 90-day TTL. The game data is never stored in a database; the backend holds only track IDs and a title — track metadata (names, artists, previews) is fetched from Deezer at play time.
+Only `/api/*` and `/g/*` invoke the Worker (`assets.run_worker_first` in `wrangler.jsonc`); every other path is served directly from static assets, with unknown paths falling back to `index.html`.
+
+```
+worker/
+  index.ts          Hono app + scheduled() cleanup handler
+  routes/           games, results, og, share (/g/:code)
+  lib/db.ts         D1 queries
+  lib/results.ts    scoring + dashboard aggregation
+  lib/schemas.ts    zod request schemas
+  test/             integration tests (run inside workerd)
+migrations/         D1 schema migrations
+```
+
+### Data
+
+Two D1 tables (`migrations/0001_init.sql`):
+
+- `games`: code, title, creator token, track ids, optional track metadata, `expires_at` (90 days after creation)
+- `plays`: one row per (game, player session) with the score and per-track outcomes; capped at 1000 per game
+
+Expired games are hidden from every query immediately and deleted (with their plays) by the daily cron.
 
 ## Development
 
 ```bash
 npm install
-npm run dev        # local dev server at http://localhost:5173
-npm test           # unit tests (codec, round model, recap)
-npm run build      # typecheck + production build to dist/
-npm run preview    # serve the production build locally
+npm run db:migrate:local   # create the local D1 schema (once, and after new migrations)
+npm run dev                # Vite + Worker (in workerd) at http://localhost:5173
+npm test                   # app unit tests (Node) + Worker integration tests (workerd)
+npm run typecheck
+npm run build              # production build to dist/ (client assets + Worker)
+npm run preview            # serve the production build locally in workerd
 ```
+
+After changing bindings in `wrangler.jsonc`, run `npm run cf-typegen` to regenerate `worker-configuration.d.ts`.
+
+To add a schema change: `npx wrangler d1 migrations create oneshot <name>`, edit the SQL file, then apply it locally and remotely.
 
 ## Deployment
 
-The project deploys to Vercel automatically on push to `main` (if the GitHub integration is connected), or manually:
+The app needs **no secrets or environment variables**. All bindings (D1, rate limiter, assets, cron) are declared in `wrangler.jsonc`.
+
+### First deploy
 
 ```bash
-vercel --prod
+npx wrangler login
+npm run deploy             # builds and deploys; the D1 database is created on first deploy
+npm run db:migrate:remote  # create the schema in the remote database
 ```
 
-The Vercel project is `one-shot` (linked via `.vercel/project.json`).
+Optionally pin the database: run `npx wrangler d1 create oneshot` first and add the printed `database_id` to the `d1_databases` entry in `wrangler.jsonc`.
 
-### Environment variables
+### Continuous deployment
 
-The API functions require Vercel KV credentials. In the Vercel dashboard these are set automatically by the KV integration:
+Connect the GitHub repository in the Cloudflare dashboard (**Workers & Pages → oneshot → Settings → Builds**):
 
-| Variable | Purpose |
-|---|---|
-| `KV_REST_API_URL` | Upstash Redis REST endpoint |
-| `KV_REST_API_TOKEN` | Upstash Redis auth token |
+- Build command: `npm run build && npm run db:migrate:remote`
+- Deploy command: `npx wrangler deploy`
 
-For local API development, add these to `.env.local` (not committed).
+Non-production branches get preview URLs automatically.
 
-The frontend has no environment variables — no secrets ship in the bundle.
+### Custom domain
 
-## Backward compatibility
+Add a route to `wrangler.jsonc` and redeploy:
 
-Old GitHub Pages links used hash routing (`#/play?d=...`). A redirect shim in `src/main.tsx` catches these and rewrites them to path-based URLs so old shared links still work.
+```jsonc
+"routes": [{ "pattern": "oneshot.example.com", "custom_domain": true }]
+```
