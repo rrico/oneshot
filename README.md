@@ -4,7 +4,7 @@ Turn any playlist into a Heardle-style music guessing game. Build a playlist fro
 
 For each song, players get **six attempts** while progressively longer snippets unlock (**1s → 2s → 4s → 7s → 11s → 16s**). Skips and wrong guesses both cost an attempt. Finish the playlist and copy an emoji recap to paste back into the chat.
 
-**Live at:** https://play.oneshot.workers.dev (Cloudflare Workers)
+**Live at:** https://play.tuneup.workers.dev (Cloudflare Workers)
 
 ## How it works
 
