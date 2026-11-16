@@ -14,10 +14,13 @@
     "run_worker_first": ["/api/*", "/g/*"]
   },
 
-  // database_id is filled in automatically on first `wrangler deploy`
-  // (or paste the id from `wrangler d1 create oneshot`).
   "d1_databases": [
-    { "binding": "DB", "database_name": "oneshot", "migrations_dir": "migrations" }
+    {
+      "binding": "DB",
+      "database_name": "oneshot",
+      "database_id": "b726969a-c2f4-460f-9f78-9d67cf4a8ea8",
+      "migrations_dir": "migrations"
+    }
   ],
 
   // Result submissions: 10 per IP per minute.
